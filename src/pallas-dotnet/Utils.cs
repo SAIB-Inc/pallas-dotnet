@@ -6,13 +6,6 @@ namespace PallasDotnet;
 
 public class Utils
 {
-    public static NextResponse MapPallasNextResponse(PallasDotnetRs.PallasDotnetRs.NextResponse rsNextResponse)
-        => new(
-            (NextResponseAction)rsNextResponse.action,
-            new Point(rsNextResponse.tip.slot, new Hash([.. rsNextResponse.tip.hash])),
-            MapPallasBlock(rsNextResponse.block)
-        );
-
     public static Point MapPallasPoint(PallasDotnetRs.PallasDotnetRs.Point rsPoint)
         => new(rsPoint.slot, new Hash([.. rsPoint.hash]));
 

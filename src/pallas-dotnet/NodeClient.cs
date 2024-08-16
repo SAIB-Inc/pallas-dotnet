@@ -1,4 +1,5 @@
 ﻿using PallasDotnet.Models;
+using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
 
 namespace PallasDotnet;
 
@@ -17,7 +18,7 @@ public class NodeClient
 
     public bool IsConnected => _nodeClient != null;
     public bool IsSyncing { get; private set; }
-    public bool ShouldRecoonect { get; set; } = true;
+    public bool ShouldReconnect { get; set; } = true;
 
     public event EventHandler<ChainSyncNextResponseEventArgs>? ChainSyncNextResponse;
     public event EventHandler? Disconnected;
@@ -66,11 +67,11 @@ public class NodeClient
             IsSyncing = true;
             while (IsSyncing)
             {
-                var nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_nodeClient.Value);
+                NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_nodeClient.Value);
 
                 if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
                 {
-                    if (ShouldRecoonect)
+                    if (ShouldReconnect)
                     {
                         _nodeClient = PallasDotnetRs.PallasDotnetRs.Connect(_socketPath, _magicNumber);
                         PallasDotnetRs.PallasDotnetRs.FindIntersect(_nodeClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
@@ -96,9 +97,10 @@ public class NodeClient
                 }
                 else
                 {
-                    var nextResponse = Utils.MapPallasNextResponse(nextResponseRs);
-                    _lastHash = nextResponse.Block.Hash.Bytes;
-                    _lastSlot = nextResponse.Block.Slot;
+                    NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
+                    Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
+
+                    NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
                     ChainSyncNextResponse?.Invoke(this, new(nextResponse));
                 }
             }

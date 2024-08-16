@@ -1,4 +1,8 @@
-use std::{collections::{HashMap, HashSet}, hash::Hash, ops::Deref};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    ops::Deref, vec,
+};
 
 use lazy_static::lazy_static;
 use pallas::{
@@ -7,22 +11,19 @@ use pallas::{
         utils::{Bytes, KeepRaw, TagWrap},
     },
     ledger::{
-        addresses::{Address, ByronAddress},
+        addresses::{Address, ByronAddress, Slot},
         primitives::{
             alonzo, babbage,
             conway::{self, PlutusData, PseudoDatumOption},
         },
-        traverse::{Era, MultiEraBlock, MultiEraMeta, MultiEraOutput, MultiEraTx},
+        traverse::{block, Era, MultiEraBlock, MultiEraMeta, MultiEraOutput, MultiEraTx},
     },
     network::{
-        facades::{NodeClient, PeerClient},
+        facades::{Error, NodeClient, PeerClient},
         miniprotocols::{
-            chainsync,
-            localstate::queries_v16::{self, Addr},
-            txsubmission::{self, EraTxBody, TxIdAndSize},
-            Point as PallasPoint, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC,
-            TESTNET_MAGIC,
+            blockfetch::{self, BlockRequest}, chainsync::{self, BlockContent}, localstate::queries_v16::{self, Addr}, txsubmission::{self, EraTxBody, TxIdAndSize}, Point as PallasPoint, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, PROTOCOL_N2N_BLOCK_FETCH, TESTNET_MAGIC
         },
+        multiplexer::{self, Bearer}
     },
 };
 use rnet::{net, Net};
@@ -140,18 +141,14 @@ pub type UtxoByAddress = HashMap<TransactionInput, TransactionOutput>;
 #[derive(Net)]
 pub struct NextResponse {
     action: u8,
-    tip: Option<Block>,
-    block: Option<Block>,
-}
-
-pub struct NodeClientWrapperData {
-    client_ptr: usize,
-    socket_path: String,
+    tip: Option<Point>,
+    block_cbor: Option<Vec<u8>>,
 }
 
 #[derive(Net)]
 pub struct NodeClientWrapper {
-    client_data_ptr: usize,
+    client_ptr: usize,
+    socket_path: String,
 }
 
 impl NodeClientWrapper {
@@ -169,14 +166,11 @@ impl NodeClientWrapper {
 
         let client_box = Box::new(client);
         let client_ptr = Box::into_raw(client_box) as usize;
-        let client_wrapper_data = NodeClientWrapperData {
+
+        NodeClientWrapper {
             client_ptr,
             socket_path,
-        };
-
-        let client_data_ptr = Box::into_raw(Box::new(client_wrapper_data)) as usize;
-
-        NodeClientWrapper { client_data_ptr }
+        }
     }
 
     #[net]
@@ -185,11 +179,7 @@ impl NodeClientWrapper {
         address: String,
     ) -> Vec<Vec<u8>> {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
-
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
             let mut client = Box::from_raw(client_ptr);
 
             // Query Utxo by address cbor
@@ -208,7 +198,6 @@ impl NodeClientWrapper {
 
             // Convert client back to a raw pointer for future use
             let _ = Box::into_raw(client);
-            let _ = Box::into_raw(client_data);
 
             utxos_by_address_cbor
                 .into_iter()
@@ -220,12 +209,7 @@ impl NodeClientWrapper {
     #[net]
     pub fn get_tip(client_wrapper: NodeClientWrapper) -> Point {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
-
-            // Convert the raw pointer back to a Box to deallocate the memory
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
             let mut client = Box::from_raw(client_ptr);
 
             // Get the tip
@@ -241,7 +225,6 @@ impl NodeClientWrapper {
 
             // Convert client back to a raw pointer for future use
             let _ = Box::into_raw(client);
-            let _ = Box::into_raw(client_data);
 
             match tip {
                 PallasPoint::Origin => Point {
@@ -260,10 +243,7 @@ impl NodeClientWrapper {
 
     pub fn find_intersect(client_wrapper: NodeClientWrapper, known_point: Point) -> Option<Point> {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
             // Convert the raw pointer back to a Box to deallocate the memory
             let mut _client = Box::from_raw(client_ptr);
@@ -277,7 +257,6 @@ impl NodeClientWrapper {
 
             // Convert client back to a raw pointer for future use
             let _ = Box::into_raw(_client);
-            let _ = Box::into_raw(client_data);
 
             // Match on the intersecting point
             intersect_point.map(|pallas_point| match pallas_point {
@@ -293,12 +272,7 @@ impl NodeClientWrapper {
     #[net]
     pub fn chain_sync_next(client_wrapper: NodeClientWrapper) -> NextResponse {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
-
-            // Convert the raw pointer back to a Box to deallocate the memory
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
             let mut client = Box::from_raw(client_ptr);
 
             // Get the next block
@@ -314,184 +288,47 @@ impl NodeClientWrapper {
 
             let next_response = match result {
                 Ok(next) => match next {
-                    chainsync::NextResponse::RollForward(h, tip) => match MultiEraBlock::decode(&h)
-                    {
-                        Ok(b) => NextResponse {
-                            action: 1,
-                            tip: match tip.0 {
-                                PallasPoint::Origin => Some(Block {
-                                    slot: 0,
-                                    hash: vec![],
-                                    number: 0,
-                                    transaction_bodies: vec![],
-                                }),
-                                PallasPoint::Specific(slot, hash) => Some(Block {
-                                    slot,
-                                    hash,
-                                    number: tip.1,
-                                    transaction_bodies: vec![],
-                                }),
-                            },
-                            block: Some(Block {
-                                slot: b.slot(),
-                                hash: b.hash().to_vec(),
-                                number: b.number(),
-                                transaction_bodies: b
-                                    .txs()
-                                    .into_iter()
-                                    .enumerate()
-                                    .map(|(index, tx_body)| TransactionBody {
-                                        id: tx_body.hash().to_vec(),
-                                        index,
-                                        era: era_to_u16(tx_body.era()),
-                                        raw: tx_body.encode(),
-                                        mint: tx_body
-                                            .mints()
-                                            .iter()
-                                            .map(|mint_ma| {
-                                                (
-                                                    mint_ma.policy().to_vec(),
-                                                    mint_ma
-                                                        .assets()
-                                                        .iter()
-                                                        .map(|a| {
-                                                            (
-                                                                a.name().to_vec(),
-                                                                a.mint_coin().unwrap(),
-                                                            )
-                                                        })
-                                                        .collect(),
-                                                )
-                                            })
-                                            .collect(),
-                                        // metadata: serde_json::to_string(tx_body.metadata().as_alonzo().unwrap()).unwrap(),
-                                        metadata: match tx_body.metadata() {
-                                            MultiEraMeta::AlonzoCompatible(x) => {
-                                                serde_json::to_string(x).unwrap()
-                                            }
-                                            _ => "".to_string(),
-                                        },
-                                        redeemers: tx_body
-                                            .redeemers()
-                                            .iter()
-                                            .map(|redeemer| Redeemer {
-                                                tag: redeemer_tag_to_u8(&redeemer.tag()),
-                                                index: redeemer.index(),
-                                                data: plutus_data_to_keep_raw(redeemer.data()),
-                                                ex_units: ExUnits {
-                                                    mem: redeemer.ex_units().mem,
-                                                    steps: redeemer.ex_units().steps,
-                                                },
-                                            })
-                                            .collect(),
-                                        inputs: tx_body
-                                            .inputs()
-                                            .into_iter()
-                                            .map(|tx_input| TransactionInput {
-                                                id: tx_input.hash().to_vec(),
-                                                index: tx_input.index(),
-                                            })
-                                            .collect::<HashSet<_>>()
-                                            .into_iter()
-                                            .collect(),
-                                        outputs: tx_body
-                                            .outputs()
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(index, tx_output)| TransactionOutput {
-                                                index,
-                                                address: output_address_bytes(&tx_output),
-                                                datum: tx_output.datum().map(convert_to_datum),
-                                                raw: tx_output.encode(),
-                                                amount: Value {
-                                                    coin: tx_output.lovelace_amount(),
-                                                    multi_asset: tx_output
-                                                        .non_ada_assets()
-                                                        .iter()
-                                                        .filter(|ma| ma.is_output())
-                                                        .map(|ma| {
-                                                            (
-                                                                ma.policy().to_vec(),
-                                                                ma.assets()
-                                                                    .iter()
-                                                                    .map(|a| {
-                                                                        (
-                                                                            a.name().to_vec(),
-                                                                            a.output_coin()
-                                                                                .unwrap(),
-                                                                        )
-                                                                    })
-                                                                    .collect(),
-                                                            )
-                                                        })
-                                                        .collect(),
-                                                },
-                                            })
-                                            .collect(),
-                                    })
-                                    .collect(),
+                    chainsync::NextResponse::RollForward(block, tip) => NextResponse {
+                        action: 1,
+                        tip: match tip.0 {
+                            PallasPoint::Origin => Some(Point {
+                                slot: 0,
+                                hash: vec![],
                             }),
+                            PallasPoint::Specific(slot, hash) => Some(Point { slot, hash }),
                         },
-                        Err(e) => {
-                            println!("error: {:?}", e);
-                            NextResponse {
-                                action: 0,
-                                block: None,
-                                tip: None,
-                            }
-                        }
+                        block_cbor: Some(block.0),
                     },
-                    chainsync::NextResponse::RollBackward(point, tip) => NextResponse {
+                    chainsync::NextResponse::RollBackward(blockpoint, tip) => NextResponse {
                         action: 2,
                         tip: match tip.0 {
-                            PallasPoint::Origin => Some(Block {
+                            PallasPoint::Origin => Some(Point {
                                 slot: 0,
                                 hash: vec![],
-                                number: 0,
-                                transaction_bodies: vec![],
                             }),
-                            PallasPoint::Specific(slot, hash) => Some(Block {
-                                slot,
-                                hash,
-                                number: tip.1,
-                                transaction_bodies: vec![],
-                            }),
+                            PallasPoint::Specific(slot, hash) => Some(Point { slot, hash }),
                         },
-                        block: match point {
-                            PallasPoint::Origin => Some(Block {
-                                slot: 0,
-                                hash: vec![],
-                                number: 0,
-                                transaction_bodies: vec![],
-                            }),
-                            PallasPoint::Specific(slot, hash) => Some(Block {
-                                slot,
-                                hash,
-                                number: 0,
-                                transaction_bodies: vec![],
-                            }),
-                        },
+                        block_cbor: None
                     },
                     chainsync::NextResponse::Await => NextResponse {
                         action: 3,
                         tip: None,
-                        block: None,
+                        block_cbor: None,
                     },
                 },
                 Err(e) => {
                     println!("chain_sync_next error: {:?}", e);
                     NextResponse {
                         action: 0,
-                        block: None,
                         tip: None,
+                        block_cbor: None,
                     }
                 }
             };
 
             // Convert client back to a raw pointer for future use
-
             let _ = Box::into_raw(client);
-            let _ = Box::into_raw(client_data);
+
             next_response
         }
     }
@@ -499,10 +336,7 @@ impl NodeClientWrapper {
     #[net]
     pub fn chain_sync_has_agency(client_wrapper: NodeClientWrapper) -> bool {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
             // Convert the raw pointer back to a Box to deallocate the memory
             let mut _client = Box::from_raw(client_ptr);
@@ -511,7 +345,6 @@ impl NodeClientWrapper {
 
             // Convert client back to a raw pointer for future use
             let _ = Box::into_raw(_client);
-            let _ = Box::into_raw(client_data);
 
             has_agency
         }
@@ -520,16 +353,33 @@ impl NodeClientWrapper {
     #[net]
     pub fn disconnect(client_wrapper: NodeClientWrapper) {
         unsafe {
-            let client_data_ptr = client_wrapper.client_data_ptr as *mut NodeClientWrapperData;
-            let client_data = Box::from_raw(client_data_ptr);
-
-            let client_ptr = client_data.client_ptr as *mut NodeClient;
+            let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
             let mut _client = Box::from_raw(client_ptr);
 
             _client.abort();
         }
     }
+}
+
+pub fn block_fetch(path: &String, blockpoint: &PallasPoint) -> Vec<u8> {
+    let bearer = RT.block_on(async {
+        Bearer::connect_unix(path)
+            .await
+            .unwrap()
+    });
+
+    let mut plexer = multiplexer::Plexer::new(bearer);
+    let bf_channel = plexer.subscribe_client(PROTOCOL_N2N_BLOCK_FETCH);
+
+    let mut block_fetch_client = blockfetch::Client::new(bf_channel);
+
+    let block = RT.block_on(async {
+        block_fetch_client.fetch_single(blockpoint.clone())
+            .await
+            .unwrap()
+    });
+    block
 }
 
 fn era_to_u16(era: Era) -> u16 {

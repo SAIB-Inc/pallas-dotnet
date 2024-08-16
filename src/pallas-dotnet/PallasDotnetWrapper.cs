@@ -68,11 +68,12 @@ namespace PallasDotnetRs
         }
         public struct NextResponse {
             public byte action;
-            public Block tip;
-            public Block block;
+            public Point tip;
+            public List<byte> blockCbor;
         }
         public struct NodeClientWrapper {
-            public UIntPtr clientDataPtr;
+            public UIntPtr clientPtr;
+            public string socketPath;
         }
         public struct PallasUtility {
         }
@@ -354,33 +355,36 @@ namespace PallasDotnetRs
         private struct _StructNextResponse {
             public byte action;
             public _RawTuple5 tip;
-            public _RawTuple5 block;
+            public _RawTuple2 blockCbor;
             public static _StructNextResponse Encode(NextResponse structArg) {
                 return new _StructNextResponse {
                     action = structArg.action,
-                    tip = _EncodeOption(structArg.tip, _arg61 => _StructBlock.Encode(_arg61)),
-                    block = _EncodeOption(structArg.block, _arg62 => _StructBlock.Encode(_arg62))
+                    tip = _EncodeOption(structArg.tip, _arg61 => _StructPoint.Encode(_arg61)),
+                    blockCbor = _EncodeOption(structArg.blockCbor, _arg62 => _AllocSlice<byte, byte>(_arg62, 1, 1, _arg63 => _arg63))
                 };
             }
             public NextResponse Decode() {
                 return new NextResponse {
                     action = this.action,
-                    tip = _DecodeOption(this.tip, _arg63 => (_arg63).Decode()),
-                    block = _DecodeOption(this.block, _arg64 => (_arg64).Decode())
+                    tip = _DecodeOption(this.tip, _arg64 => (_arg64).Decode()),
+                    blockCbor = _DecodeOption(this.blockCbor, _arg65 => _FreeSlice<byte, byte, List<byte>>(_arg65, 1, 1, _arg66 => _arg66))
                 };
             }
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _StructNodeClientWrapper {
-            public UIntPtr clientDataPtr;
+            public UIntPtr clientPtr;
+            public _RawSlice socketPath;
             public static _StructNodeClientWrapper Encode(NodeClientWrapper structArg) {
                 return new _StructNodeClientWrapper {
-                    clientDataPtr = structArg.clientDataPtr
+                    clientPtr = structArg.clientPtr,
+                    socketPath = _AllocStr(structArg.socketPath)
                 };
             }
             public NodeClientWrapper Decode() {
                 return new NodeClientWrapper {
-                    clientDataPtr = this.clientDataPtr
+                    clientPtr = this.clientPtr,
+                    socketPath = _FreeStr(this.socketPath)
                 };
             }
         }
@@ -433,7 +437,7 @@ namespace PallasDotnetRs
             _StructNodeClientWrapper clientWrapper
         );
         [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_find_intersect", CallingConvention = CallingConvention.Cdecl)]
-        private static extern _RawTuple6 _FnFindIntersect(
+        private static extern _RawTuple5 _FnFindIntersect(
             _StructNodeClientWrapper clientWrapper,
             _StructPoint knownPoint
         );
@@ -527,36 +531,17 @@ namespace PallasDotnetRs
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _RawTuple5 {
-            public _StructBlock elem0;
-            public byte elem1;
-        }
-        private static _RawTuple5 _EncodeOption<T>(T arg, Func<T, _StructBlock> converter) {
-            if (arg != null) {
-                return new _RawTuple5 { elem0 = converter(arg), elem1 = 1 };
-            } else {
-                return new _RawTuple5 { elem0 = default(_StructBlock), elem1 = 0 };
-            }
-        }
-        private static T _DecodeOption<T>(_RawTuple5 arg, Func<_StructBlock, T> converter) {
-            if (arg.elem1 != 0) {
-                return converter(arg.elem0);
-            } else {
-                return default(T);
-            }
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _RawTuple6 {
             public _StructPoint elem0;
             public byte elem1;
         }
-        private static _RawTuple6 _EncodeOption<T>(T arg, Func<T, _StructPoint> converter) {
+        private static _RawTuple5 _EncodeOption<T>(T arg, Func<T, _StructPoint> converter) {
             if (arg != null) {
-                return new _RawTuple6 { elem0 = converter(arg), elem1 = 1 };
+                return new _RawTuple5 { elem0 = converter(arg), elem1 = 1 };
             } else {
-                return new _RawTuple6 { elem0 = default(_StructPoint), elem1 = 0 };
+                return new _RawTuple5 { elem0 = default(_StructPoint), elem1 = 0 };
             }
         }
-        private static T _DecodeOption<T>(_RawTuple6 arg, Func<_StructPoint, T> converter) {
+        private static T _DecodeOption<T>(_RawTuple5 arg, Func<_StructPoint, T> converter) {
             if (arg.elem1 != 0) {
                 return converter(arg.elem0);
             } else {
