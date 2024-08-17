@@ -21,7 +21,9 @@ use pallas::{
     network::{
         facades::{Error, NodeClient, PeerClient},
         miniprotocols::{
-            blockfetch::{self, BlockRequest}, chainsync::{self, BlockContent}, localstate::queries_v16::{self, Addr}, txsubmission::{self, EraTxBody, TxIdAndSize}, Point as PallasPoint, MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, PROTOCOL_N2N_BLOCK_FETCH, TESTNET_MAGIC
+            blockfetch::{self, BlockRequest}, chainsync::{self, BlockContent}, localstate::queries_v16::{self, Addr}, 
+            txsubmission::{self, EraTxBody, TxIdAndSize}, Point as PallasPoint, 
+            MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, PROTOCOL_N2N_BLOCK_FETCH, TESTNET_MAGIC
         },
         multiplexer::{self, Bearer}
     },
@@ -69,27 +71,6 @@ pub struct Point {
     hash: Vec<u8>,
 }
 
-#[derive(Net)]
-pub struct Block {
-    slot: u64,
-    hash: Vec<u8>,
-    number: u64,
-    transaction_bodies: Vec<TransactionBody>,
-}
-
-#[derive(Net)]
-pub struct TransactionBody {
-    id: Vec<u8>,
-    era: u16,
-    inputs: Vec<TransactionInput>,
-    outputs: Vec<TransactionOutput>,
-    mint: HashMap<PolicyId, HashMap<AssetName, MintCoin>>,
-    index: usize,
-    metadata: String,
-    redeemers: Vec<Redeemer>,
-    raw: Vec<u8>,
-}
-
 #[derive(Net, Debug, Eq, PartialEq, Hash)]
 pub struct TransactionInput {
     id: Vec<u8>,
@@ -115,20 +96,6 @@ pub struct TransactionOutput {
 pub struct Value {
     coin: Coin,
     multi_asset: HashMap<PolicyId, HashMap<AssetName, Coin>>,
-}
-
-#[derive(Net)]
-pub struct Redeemer {
-    tag: RedeemerTag,
-    index: u32,
-    data: Vec<u8>,
-    ex_units: ExUnits,
-}
-
-#[derive(Net)]
-pub struct ExUnits {
-    pub mem: u64,
-    pub steps: u64,
 }
 
 pub type Coin = u64;
