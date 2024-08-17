@@ -33,15 +33,26 @@ nodeClient.ChainSyncNextResponse += (sender, args) =>
 {
     NextResponse nextResponse = args.NextResponse;
 
-    string message = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back." : "Rolling forward.";
-    string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
-    Console.WriteLine(message);
-    Console.WriteLine(cborHex);
+    if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+    {
+        string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back." : "Rolling forward.";
+
+        Console.WriteLine(action);
+        Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+        
+        if (nextResponse.Action == NextResponseAction.RollForward)
+        {
+            string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+            Console.WriteLine(cborHex);
+        }
+
+        Console.WriteLine("----------------------------------------");
+    }
 };
 
 await nodeClient.StartChainSyncAsync(new Point(
-    57079142,
-    new Hash("1b56ac57c008fa6f19a6b83c73cb415e2e04200ae9bc8ab74614a903b6d44504")
+    57222760,
+    new Hash("7bed2d5f3c473bc43d9b9597b50ee7dc29511da2830b34278e12f7b6cf70b49e")
 ));
 
 while (true)
