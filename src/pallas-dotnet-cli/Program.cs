@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using PallasDotnet;
 using PallasDotnet.Models;
-using Spectre.Console;
 
 static double GetCurrentMemoryUsageInMB()
 {
@@ -32,10 +31,14 @@ nodeClient.Reconnected += (sender, args) =>
 nodeClient.ChainSyncNextResponse += (sender, args) =>
 {
     NextResponse nextResponse = args.NextResponse;
-
-    if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+    
+    if (nextResponse.Action == NextResponseAction.Await)
     {
-        string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back." : "Rolling forward.";
+        Console.WriteLine("Awaiting...");
+    }
+    else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+    {
+        string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
 
         Console.WriteLine(action);
         Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
