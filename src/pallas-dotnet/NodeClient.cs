@@ -100,7 +100,12 @@ public class NodeClient
                     NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
                     Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
 
-                    NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
+                    NextResponse nextResponse = nextResponseAction switch
+                    {
+                        NextResponseAction.RollForward => new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]),
+                        NextResponseAction.RollBack => new(nextResponseAction, tip, default!),
+                        _ => default!
+                    };
                     ChainSyncNextResponse?.Invoke(this, new(nextResponse));
                 }
             }
