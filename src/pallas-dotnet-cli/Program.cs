@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using PallasDotnet;
 using PallasDotnet.Models;
+using Spectre.Console.Rendering;
 
 static double GetCurrentMemoryUsageInMB()
 {
@@ -15,49 +17,76 @@ static double GetCurrentMemoryUsageInMB()
     return memoryUsedMb;
 }
 
-NodeClient? nodeClient = new();
-Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
-
-nodeClient.Disconnected += (sender, args) =>
+// N2C Protocol Implementation
+async void executeN2c()
 {
-    ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
-};
+    NodeClient? nodeClient = new();
+    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
 
-nodeClient.Reconnected += (sender, args) =>
-{
-    ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
-};
-
-nodeClient.ChainSyncNextResponse += (sender, args) =>
-{
-    NextResponse nextResponse = args.NextResponse;
-    
-    if (nextResponse.Action == NextResponseAction.Await)
+    nodeClient.Disconnected += (sender, args) =>
     {
-        Console.WriteLine("Awaiting...");
-    }
-    else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
-    {
-        string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
+        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
+    };
 
-        Console.WriteLine(action);
-        Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+    nodeClient.Reconnected += (sender, args) =>
+    {
+        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
+    };
+
+    nodeClient.ChainSyncNextResponse += (sender, args) =>
+    {
+        NextResponse nextResponse = args.NextResponse;
         
-        if (nextResponse.Action == NextResponseAction.RollForward)
+        if (nextResponse.Action == NextResponseAction.Await)
         {
-            Console.WriteLine("Block:");
-            string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
-            Console.WriteLine(cborHex);
+            Console.WriteLine("Awaiting...");
         }
+        else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+        {
+            string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
 
-        Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine(action);
+            Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+            
+            if (nextResponse.Action == NextResponseAction.RollForward)
+            {
+                Console.WriteLine("Block:");
+                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+                Console.WriteLine(cborHex);
+            }
+
+            Console.WriteLine("--------------------------------------------------------------------------------");
+        }
+    };
+
+    await nodeClient.StartChainSyncAsync(new Point(
+        57491927,
+        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+    ));
+}
+
+// N2N Protocol Implementation
+async void executeN2n()
+{
+    N2nClient? n2nClient = new();
+    string? connectionStatus = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
+
+    if (connectionStatus is not null)
+    {
+        Console.WriteLine(connectionStatus);
     }
-};
 
-await nodeClient.StartChainSyncAsync(new Point(
-    57491927,
-    new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
-));
+    Console.WriteLine("Fetching block...");
+    
+    byte[] block_cbor = await n2nClient.FetchBlockAsync(new Point(
+        57491927,
+        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+    ));
+
+    Console.WriteLine(Convert.ToHexString(block_cbor));
+}
+
+await Task.Run(executeN2n);
 
 while (true)
 {
