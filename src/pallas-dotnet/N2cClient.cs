@@ -1,5 +1,5 @@
 ﻿using PallasDotnet.Models;
-using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
+using NextResponseRs = PallasDotnetN2c.PallasDotnetN2c.NextResponse;
 
 namespace PallasDotnet;
 
@@ -10,13 +10,13 @@ public class ChainSyncNextResponseEventArgs(NextResponse nextResponse) : EventAr
 
 public class NodeClient
 {
-    private PallasDotnetRs.PallasDotnetRs.NodeClientWrapper? _nodeClient;
+    private PallasDotnetN2c.PallasDotnetN2c.NodeToClientWrapper? _n2cClient;
     private string _socketPath = string.Empty;
     private ulong _magicNumber = 0;
     private byte[] _lastHash = [];
     private ulong _lastSlot = 0;
 
-    public bool IsConnected => _nodeClient != null;
+    public bool IsConnected => _n2cClient != null;
     public bool IsSyncing { get; private set; }
     public bool ShouldReconnect { get; set; } = true;
 
@@ -31,21 +31,21 @@ public class NodeClient
 
         return await Task.Run(() =>
         {
-            _nodeClient = PallasDotnetRs.PallasDotnetRs.Connect(socketPath, magicNumber);
+            _n2cClient = PallasDotnetN2c.PallasDotnetN2c.Connect(socketPath, magicNumber);
 
-            if (_nodeClient is null)
+            if (_n2cClient is null)
             {
                 throw new Exception("Failed to connect to node");
             }
 
-            var pallasPoint = PallasDotnetRs.PallasDotnetRs.GetTip(_nodeClient.Value);
+            var pallasPoint = PallasDotnetN2c.PallasDotnetN2c.GetTip(_n2cClient.Value);
             return Utils.MapPallasPoint(pallasPoint);
         });
     }
 
     public async Task StartChainSyncAsync(Point? intersection = null)
     {
-        if (_nodeClient is null)
+        if (_n2cClient is null)
         {
             throw new Exception("Not connected to node");
         }
@@ -54,7 +54,7 @@ public class NodeClient
         {
             await Task.Run(() =>
             {
-                PallasDotnetRs.PallasDotnetRs.FindIntersect(_nodeClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
+                PallasDotnetN2c.PallasDotnetN2c.FindIntersect(_n2cClient.Value, new PallasDotnetN2c.PallasDotnetN2c.Point
                 {
                     slot = intersection.Slot,
                     hash = new List<byte>(intersection.Hash.Bytes)
@@ -67,14 +67,14 @@ public class NodeClient
             IsSyncing = true;
             while (IsSyncing)
             {
-                NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_nodeClient.Value);
+                NextResponseRs nextResponseRs = PallasDotnetN2c.PallasDotnetN2c.ChainSyncNext(_n2cClient.Value);
 
                 if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
                 {
                     if (ShouldReconnect)
                     {
-                        _nodeClient = PallasDotnetRs.PallasDotnetRs.Connect(_socketPath, _magicNumber);
-                        PallasDotnetRs.PallasDotnetRs.FindIntersect(_nodeClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
+                        _n2cClient = PallasDotnetN2c.PallasDotnetN2c.Connect(_socketPath, _magicNumber);
+                        PallasDotnetN2c.PallasDotnetN2c.FindIntersect(_n2cClient.Value, new PallasDotnetN2c.PallasDotnetN2c.Point
                         {
                             slot = _lastSlot,
                             hash = [.. _lastHash]
@@ -114,11 +114,11 @@ public class NodeClient
 
     public async Task<List<byte[]>> GetUtxoByAddressCborAsync(string address)
     {
-        if (_nodeClient is null)
+        if (_n2cClient is null)
         {
             throw new Exception("Not connected to node");
         }
-        var utxoByAddress = await Task.Run(() => PallasDotnetRs.PallasDotnetRs.GetUtxoByAddressCbor(_nodeClient.Value, address));
+        var utxoByAddress = await Task.Run(() => PallasDotnetN2c.PallasDotnetN2c.GetUtxoByAddressCbor(_n2cClient.Value, address));
         return utxoByAddress?.Select(utxo => utxo.ToArray()).ToList() ?? [];
     }
 
@@ -129,10 +129,10 @@ public class NodeClient
 
     public Task DisconnectAsync()
     {
-        if (_nodeClient is null)
+        if (_n2cClient is null)
         {
             throw new Exception("Not connected to node");
         }
-        return Task.Run(() => PallasDotnetRs.PallasDotnetRs.Disconnect(_nodeClient.Value));
+        return Task.Run(() => PallasDotnetN2c.PallasDotnetN2c.Disconnect(_n2cClient.Value));
     }
 }
