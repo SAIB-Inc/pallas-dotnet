@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using PallasDotnet;
 using PallasDotnet.Models;
+using Spectre.Console.Rendering;
 using Spectre.Console.Rendering;
 
 static double GetCurrentMemoryUsageInMB()
@@ -18,11 +20,15 @@ static double GetCurrentMemoryUsageInMB()
 }
 
 // N2C Protocol Implementation
-async void executeN2c()
+async void ExecuteN2cProtocol()
 {
     NodeClient? nodeClient = new();
     Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
 
+    nodeClient.Disconnected += (sender, args) =>
+    {
+        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
+    };
     nodeClient.Disconnected += (sender, args) =>
     {
         ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
@@ -32,7 +38,22 @@ async void executeN2c()
     {
         ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
     };
+    nodeClient.Reconnected += (sender, args) =>
+    {
+        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
+    };
 
+    nodeClient.ChainSyncNextResponse += (sender, args) =>
+    {
+        NextResponse nextResponse = args.NextResponse;
+        
+        if (nextResponse.Action == NextResponseAction.Await)
+        {
+            Console.WriteLine("Awaiting...");
+        }
+        else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+        {
+            string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
     nodeClient.ChainSyncNextResponse += (sender, args) =>
     {
         NextResponse nextResponse = args.NextResponse;
@@ -54,7 +75,19 @@ async void executeN2c()
                 string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
                 Console.WriteLine(cborHex);
             }
+            Console.WriteLine(action);
+            Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+            
+            if (nextResponse.Action == NextResponseAction.RollForward)
+            {
+                Console.WriteLine("Block:");
+                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+                Console.WriteLine(cborHex);
+            }
 
+            Console.WriteLine("--------------------------------------------------------------------------------");
+        }
+    };
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
     };
@@ -66,7 +99,7 @@ async void executeN2c()
 }
 
 // N2N Protocol Implementation
-async void executeN2n()
+async void ExecuteN2nProtocol()
 {
     N2nClient? n2nClient = new();
     string? connectionStatus = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
@@ -86,7 +119,7 @@ async void executeN2n()
     Console.WriteLine(Convert.ToHexString(block_cbor));
 }
 
-await Task.Run(executeN2n);
+await Task.Run(ExecuteN2nProtocol);
 
 while (true)
 {
