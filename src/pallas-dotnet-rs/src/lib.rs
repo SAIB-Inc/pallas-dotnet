@@ -1,31 +1,21 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     hash::Hash,
     ops::Deref, vec,
 };
-
 use lazy_static::lazy_static;
 use pallas::{
-    codec::{
-        minicbor::{self, Encode},
-        utils::{Bytes, KeepRaw, TagWrap},
-    },
     ledger::{
-        addresses::{Address, ByronAddress, Slot},
-        primitives::{
-            alonzo, babbage,
-            conway::{self, PlutusData, PseudoDatumOption},
-        },
-        traverse::{block, Era, MultiEraBlock, MultiEraMeta, MultiEraOutput, MultiEraTx},
+        addresses::{Address, ByronAddress},
+        traverse::MultiEraTx,
     },
     network::{
-        facades::{Error, NodeClient, PeerClient},
+        facades::{NodeClient, PeerClient},
         miniprotocols::{
-            blockfetch::{self, BlockRequest}, chainsync::{self, BlockContent}, localstate::queries_v16::{self, Addr}, 
+            chainsync::{self}, localstate::queries_v16::{self, Addr}, 
             txsubmission::{self, EraTxBody, TxIdAndSize}, Point as PallasPoint, 
-            MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, PROTOCOL_N2N_BLOCK_FETCH, TESTNET_MAGIC
-        },
-        multiplexer::{self, Bearer}
+            MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC
+        }
     },
 };
 use rnet::{net, Net};
@@ -36,9 +26,6 @@ rnet::root!();
 lazy_static! {
     static ref RT: Runtime = Runtime::new().expect("Failed to create Tokio runtime");
 }
-
-const DATUM_TYPE_HASH: u8 = 1;
-const DATUM_TYPE_DATA: u8 = 2;
 
 #[derive(Net)]
 pub struct NetworkMagic {}
@@ -266,7 +253,7 @@ impl NodeClientWrapper {
                         },
                         block_cbor: Some(block.0),
                     },
-                    chainsync::NextResponse::RollBackward(blockpoint, tip) => NextResponse {
+                    chainsync::NextResponse::RollBackward(_, tip) => NextResponse {
                         action: 2,
                         tip: match tip.0 {
                             PallasPoint::Origin => Some(Point {
@@ -324,104 +311,10 @@ impl NodeClientWrapper {
 
             let mut _client = Box::from_raw(client_ptr);
 
-            _client.abort();
+            RT.block_on(async {
+                _client.abort().await;
+            });
         }
-    }
-}
-
-pub fn block_fetch(path: &String, blockpoint: &PallasPoint) -> Vec<u8> {
-    let bearer = RT.block_on(async {
-        Bearer::connect_unix(path)
-            .await
-            .unwrap()
-    });
-
-    let mut plexer = multiplexer::Plexer::new(bearer);
-    let bf_channel = plexer.subscribe_client(PROTOCOL_N2N_BLOCK_FETCH);
-
-    let mut block_fetch_client = blockfetch::Client::new(bf_channel);
-
-    let block = RT.block_on(async {
-        block_fetch_client.fetch_single(blockpoint.clone())
-            .await
-            .unwrap()
-    });
-    block
-}
-
-fn era_to_u16(era: Era) -> u16 {
-    match era {
-        Era::Byron => 0,
-        Era::Shelley => 1,
-        Era::Allegra => 2,
-        Era::Mary => 3,
-        Era::Alonzo => 4,
-        Era::Babbage => 5,
-        Era::Conway => 6,
-        _ => 7, // Assume a future era
-    }
-}
-
-fn u16_to_era(era: u16) -> Era {
-    match era {
-        0 => Era::Byron,
-        1 => Era::Shelley,
-        2 => Era::Allegra,
-        3 => Era::Mary,
-        4 => Era::Alonzo,
-        5 => Era::Babbage,
-        6 => Era::Conway,
-        _ => Era::Mary, // Assume a future era
-    }
-}
-
-fn redeemer_tag_to_u8(tag: &conway::RedeemerTag) -> u8 {
-    match tag {
-        conway::RedeemerTag::Spend => 0,
-        conway::RedeemerTag::Mint => 1,
-        conway::RedeemerTag::Cert => 2,
-        conway::RedeemerTag::Reward => 3,
-        conway::RedeemerTag::Vote => 4,
-        conway::RedeemerTag::Propose => 5,
-    }
-}
-
-fn convert_to_datum(datum: PseudoDatumOption<KeepRaw<'_, PlutusData>>) -> Datum {
-    match datum {
-        PseudoDatumOption::Hash(hash) => Datum {
-            datum_type: DATUM_TYPE_HASH,
-            data: Some(hash.to_vec()),
-        },
-        PseudoDatumOption::Data(keep_raw) => {
-            let raw_data = keep_raw.raw_cbor().to_vec();
-            Datum {
-                datum_type: DATUM_TYPE_DATA,
-                data: Some(raw_data),
-            }
-        }
-    }
-}
-
-fn plutus_data_to_keep_raw(plutus_data: &PlutusData) -> Vec<u8> {
-    let mut buffer = Vec::new(); // A buffer to hold the encoded data
-    let mut encoder = minicbor::Encoder::new(&mut buffer);
-    plutus_data.encode(&mut encoder, &mut ()).ok();
-    buffer
-}
-
-fn output_address_bytes(multi_era_output: &MultiEraOutput) -> Vec<u8> {
-    match multi_era_output {
-        MultiEraOutput::AlonzoCompatible(x, _) => x.address.to_vec(),
-        MultiEraOutput::Babbage(x) => match x.deref().deref() {
-            babbage::MintedTransactionOutput::Legacy(x) => x.address.to_vec(),
-            babbage::MintedTransactionOutput::PostAlonzo(x) => x.address.to_vec(),
-        },
-        MultiEraOutput::Byron(x) => x.address.payload.0.to_vec(),
-        MultiEraOutput::Conway(x) => match x.deref().deref() {
-            conway::MintedTransactionOutput::Legacy(x) => x.address.to_vec(),
-            conway::MintedTransactionOutput::PostAlonzo(x) => x.address.to_vec(),
-        },
-        _ => panic!("unexpected multi era output..."),
     }
 }
 
@@ -453,7 +346,7 @@ impl TxSubmit {
         let ids = RT.block_on(async {
             let tx_clone = tx.clone();
             let multi_era_tx = MultiEraTx::decode(&tx_clone).unwrap();
-            let tx_era = era_to_u16(multi_era_tx.era());
+            let tx_era = multi_era_tx.era() as u16;
             let mempool = vec![(multi_era_tx.hash(), tx.clone())];
             let mut peer = PeerClient::connect(server, magic).await.unwrap();
             let client_txsub = peer.txsubmission();
@@ -520,7 +413,7 @@ impl TxSubmit {
                 _ => panic!("unexpected message"),
             };
 
-            let id_bytes: Vec<u8> = ids
+            let id_bytes = ids
                 .iter()
                 .flat_map(|id| id.1.to_vec()) // Assuming `Hash<32>` is a tuple struct with the first element being an array `[u8; 32]`
                 .collect();
