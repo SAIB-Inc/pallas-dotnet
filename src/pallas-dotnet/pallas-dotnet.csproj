@@ -31,14 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="libpallas_dotnet_rs.so">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-      <pack>true</pack>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="*.dylib">
       <Pack>true</Pack>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -47,7 +39,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="libpallas_dotnet_rs.dylib">
+    <Content Include="libpallas_dotnet_n2c.dylib">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <pack>true</pack>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="libpallas_dotnet_n2n.dylib">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <PackageCopyToOutput>true</PackageCopyToOutput>
       <pack>true</pack>
