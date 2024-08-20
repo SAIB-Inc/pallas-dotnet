@@ -45,17 +45,18 @@ nodeClient.ChainSyncNextResponse += (sender, args) =>
         
         if (nextResponse.Action == NextResponseAction.RollForward)
         {
+            Console.WriteLine("Block:");
             string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
             Console.WriteLine(cborHex);
         }
 
-        Console.WriteLine("----------------------------------------");
+        Console.WriteLine("--------------------------------------------------------------------------------");
     }
 };
 
 await nodeClient.StartChainSyncAsync(new Point(
-    57222760,
-    new Hash("7bed2d5f3c473bc43d9b9597b50ee7dc29511da2830b34278e12f7b6cf70b49e")
+    57491927,
+    new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
 ));
 
 while (true)
