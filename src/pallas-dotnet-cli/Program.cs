@@ -1,10 +1,6 @@
 ﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.CompilerServices;
 using PallasDotnet;
 using PallasDotnet.Models;
-using Spectre.Console.Rendering;
-using Spectre.Console.Rendering;
 
 static double GetCurrentMemoryUsageInMB()
 {
