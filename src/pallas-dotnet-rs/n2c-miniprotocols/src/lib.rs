@@ -5,15 +5,13 @@ use std::{
 };
 use lazy_static::lazy_static;
 use pallas::{
-    ledger::{
-        addresses::{Address, ByronAddress},
-        traverse::MultiEraTx,
-    },
+    ledger::addresses::{Address, ByronAddress},
     network::{
-        facades::{NodeClient, PeerClient},
+        facades::NodeClient,
         miniprotocols::{
-            chainsync::{self}, localstate::queries_v16::{self, Addr}, 
-            txsubmission::{self, EraTxBody, TxIdAndSize}, Point as PallasPoint, 
+            chainsync::{self}, 
+            localstate::queries_v16::{self, Addr},
+            Point as PallasPoint, 
             MAINNET_MAGIC, PREVIEW_MAGIC, PRE_PRODUCTION_MAGIC, TESTNET_MAGIC
         }
     },
@@ -100,18 +98,18 @@ pub struct NextResponse {
 }
 
 #[derive(Net)]
-pub struct NodeClientWrapper {
+pub struct NodeToClientWrapper {
     client_ptr: usize,
     socket_path: String,
 }
 
-impl NodeClientWrapper {
+impl NodeToClientWrapper {
     #[net]
-    pub fn connect(socket_path: String, network_magic: u64) -> NodeClientWrapper {
-        NodeClientWrapper::connect(socket_path, network_magic)
+    pub fn connect(socket_path: String, network_magic: u64) -> NodeToClientWrapper {
+        NodeToClientWrapper::connect(socket_path, network_magic)
     }
 
-    pub fn connect(socket_path: String, network_magic: u64) -> NodeClientWrapper {
+    pub fn connect(socket_path: String, network_magic: u64) -> NodeToClientWrapper {
         let client = RT.block_on(async {
             NodeClient::connect(&socket_path, network_magic)
                 .await
@@ -121,7 +119,7 @@ impl NodeClientWrapper {
         let client_box = Box::new(client);
         let client_ptr = Box::into_raw(client_box) as usize;
 
-        NodeClientWrapper {
+        NodeToClientWrapper {
             client_ptr,
             socket_path,
         }
@@ -129,7 +127,7 @@ impl NodeClientWrapper {
 
     #[net]
     pub fn get_utxo_by_address_cbor(
-        client_wrapper: NodeClientWrapper,
+        client_wrapper: NodeToClientWrapper,
         address: String,
     ) -> Vec<Vec<u8>> {
         unsafe {
@@ -161,7 +159,7 @@ impl NodeClientWrapper {
     }
 
     #[net]
-    pub fn get_tip(client_wrapper: NodeClientWrapper) -> Point {
+    pub fn get_tip(client_wrapper: NodeToClientWrapper) -> Point {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
             let mut client = Box::from_raw(client_ptr);
@@ -191,11 +189,11 @@ impl NodeClientWrapper {
     }
 
     #[net]
-    pub fn find_intersect(client_wrapper: NodeClientWrapper, known_point: Point) -> Option<Point> {
-        NodeClientWrapper::find_intersect(client_wrapper, known_point)
+    pub fn find_intersect(client_wrapper: NodeToClientWrapper, known_point: Point) -> Option<Point> {
+        NodeToClientWrapper::find_intersect(client_wrapper, known_point)
     }
 
-    pub fn find_intersect(client_wrapper: NodeClientWrapper, known_point: Point) -> Option<Point> {
+    pub fn find_intersect(client_wrapper: NodeToClientWrapper, known_point: Point) -> Option<Point> {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
@@ -224,7 +222,7 @@ impl NodeClientWrapper {
     }
 
     #[net]
-    pub fn chain_sync_next(client_wrapper: NodeClientWrapper) -> NextResponse {
+    pub fn chain_sync_next(client_wrapper: NodeToClientWrapper) -> NextResponse {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
             let mut client = Box::from_raw(client_ptr);
@@ -288,7 +286,7 @@ impl NodeClientWrapper {
     }
 
     #[net]
-    pub fn chain_sync_has_agency(client_wrapper: NodeClientWrapper) -> bool {
+    pub fn chain_sync_has_agency(client_wrapper: NodeToClientWrapper) -> bool {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
@@ -305,7 +303,7 @@ impl NodeClientWrapper {
     }
 
     #[net]
-    pub fn disconnect(client_wrapper: NodeClientWrapper) {
+    pub fn disconnect(client_wrapper: NodeToClientWrapper) {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
 
@@ -330,95 +328,5 @@ impl PallasUtility {
                 .unwrap()
                 .to_base58(),
         }
-    }
-}
-
-#[derive(Net)]
-pub struct TxSubmit {}
-
-impl TxSubmit {
-    #[net]
-    pub fn submit_tx(server: String, magic: u64, tx: Vec<u8>) -> Vec<u8> {
-        TxSubmit::submit_tx(server, magic, tx)
-    }
-
-    pub fn submit_tx(server: String, magic: u64, tx: Vec<u8>) -> Vec<u8> {
-        let ids = RT.block_on(async {
-            let tx_clone = tx.clone();
-            let multi_era_tx = MultiEraTx::decode(&tx_clone).unwrap();
-            let tx_era = multi_era_tx.era() as u16;
-            let mempool = vec![(multi_era_tx.hash(), tx.clone())];
-            let mut peer = PeerClient::connect(server, magic).await.unwrap();
-            let client_txsub = peer.txsubmission();
-
-            client_txsub.send_init().await.unwrap();
-
-            let _ = match client_txsub.next_request().await.unwrap() {
-                txsubmission::Request::TxIds(ack, _) => {
-                    assert_eq!(*client_txsub.state(), txsubmission::State::TxIdsBlocking);
-                    ack
-                }
-                txsubmission::Request::TxIdsNonBlocking(ack, _) => {
-                    assert_eq!(*client_txsub.state(), txsubmission::State::TxIdsNonBlocking);
-                    ack
-                }
-                _ => panic!("unexpected message"),
-            };
-
-            let to_send = mempool.clone();
-            let ids_and_size = to_send
-                .clone()
-                .into_iter()
-                .map(|(h, b)| {
-                    TxIdAndSize(txsubmission::EraTxId(tx_era, h.to_vec()), b.len() as u32)
-                })
-                .collect();
-
-            client_txsub.reply_tx_ids(ids_and_size).await.unwrap();
-
-            let ids = match client_txsub.next_request().await.unwrap() {
-                txsubmission::Request::Txs(ids) => ids,
-                _ => panic!("unexpected message"),
-            };
-
-            let txs_to_send: Vec<_> = to_send
-                .into_iter()
-                .map(|(_, b)| EraTxBody(tx_era, b))
-                .collect();
-            client_txsub.reply_txs(txs_to_send).await.unwrap();
-
-            match client_txsub.next_request().await.unwrap() {
-                txsubmission::Request::TxIdsNonBlocking(_, _) => {
-                    assert_eq!(*client_txsub.state(), txsubmission::State::TxIdsNonBlocking);
-                }
-                _ => panic!("unexpected message"),
-            };
-
-            client_txsub.reply_tx_ids(vec![]).await.unwrap();
-
-            match client_txsub.next_request().await.unwrap() {
-                txsubmission::Request::TxIds(ack, _) => {
-                    assert_eq!(*client_txsub.state(), txsubmission::State::TxIdsBlocking);
-
-                    client_txsub.send_done().await.unwrap();
-                    assert_eq!(*client_txsub.state(), txsubmission::State::Done);
-
-                    ack
-                }
-                txsubmission::Request::TxIdsNonBlocking(ack, _) => {
-                    assert_eq!(*client_txsub.state(), txsubmission::State::TxIdsNonBlocking);
-
-                    ack
-                }
-                _ => panic!("unexpected message"),
-            };
-
-            let id_bytes = ids
-                .iter()
-                .flat_map(|id| id.1.to_vec()) // Assuming `Hash<32>` is a tuple struct with the first element being an array `[u8; 32]`
-                .collect();
-            id_bytes
-        });
-        ids
     }
 }

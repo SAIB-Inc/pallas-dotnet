@@ -940,7 +940,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallas-dotnet-rs"
+name = "pallas-dotnet-n2c"
 version = "0.1.0"
 dependencies = [
  "hex",
