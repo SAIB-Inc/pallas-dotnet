@@ -7,8 +7,9 @@ use pallas::{
     network::{
         facades::PeerClient,
         miniprotocols::{
-            txsubmission::{self, EraTxBody, TxIdAndSize},
-            Point as PallasPoint,
+            chainsync::{self}, 
+            txsubmission::{self, EraTxBody, TxIdAndSize}, 
+            Point as PallasPoint 
         }
     },
 };
@@ -23,6 +24,13 @@ lazy_static! {
 pub struct Point {
     slot: u64,
     hash: Vec<u8>,
+}
+
+#[derive(Net)]
+pub struct NextResponse {
+    action: u8,
+    tip: Option<Point>,
+    block_cbor: Option<Vec<u8>>,
 }
 
 #[derive(Net)]
@@ -50,6 +58,76 @@ impl NodeToNodeWrapper {
     }
 
     #[net]
+    pub fn chain_sync_next(client_wrapper: NodeToNodeWrapper) -> NextResponse {
+        unsafe {
+            let client_ptr = client_wrapper.client_ptr as *mut PeerClient;
+            let mut client = Box::from_raw(client_ptr);
+
+            // Get the next block
+            let result = RT.block_on(async {
+                if client.chainsync().has_agency() {
+                    // When the client has the agency, send a request for the next block
+                    client.chainsync().request_next().await
+                } else {
+                    // When the client does not have the agency, wait for the server's response
+                    client.chainsync().recv_while_must_reply().await
+                }
+            });
+
+            let next_response = match result {
+                Ok(next) => match next {
+                    chainsync::NextResponse::RollForward(header, tip) => NextResponse {
+                        action: 1,
+                        tip: match tip.0 {
+                            PallasPoint::Origin => Some(Point {
+                                slot: 0,
+                                hash: vec![],
+                            }),
+                            PallasPoint::Specific(slot, hash) => Some(Point { slot, hash }),
+                        },
+                        block_cbor: Some(header.cbor),
+                    },
+                    chainsync::NextResponse::RollBackward(point, tip) => NextResponse {
+                        action: 2,
+                        tip: match tip.0 {
+                            PallasPoint::Origin => Some(Point {
+                                slot: 0,
+                                hash: vec![],
+                            }),
+                            PallasPoint::Specific(slot, hash) => Some(Point { slot, hash}),
+                        },
+                        block_cbor: match point {
+                            PallasPoint::Origin => NodeToNodeWrapper::fetch_block(client_wrapper, Point { slot: 0, hash: vec![] }),
+                            PallasPoint::Specific(slot, hash) => NodeToNodeWrapper::fetch_block(client_wrapper, Point { slot, hash })
+                        }
+                    },
+                    chainsync::NextResponse::Await => NextResponse {
+                        action: 3,
+                        tip: None,
+                        block_cbor: None
+                    }
+                },
+                Err(e) => {
+                    println!("chain_sync_next error: {:?}", e);
+                    NextResponse {
+                        action: 0,
+                        tip: None,
+                        block_cbor: None,
+                    }
+                }
+            };
+
+            let _ = Box::into_raw(client);
+
+            next_response
+        }
+    }
+
+    #[net]
+    pub fn fetch_block(client_wrapper: NodeToNodeWrapper, point: Point) -> Option<Vec<u8>> {
+        NodeToNodeWrapper::fetch_block(client_wrapper, point)
+    }
+
     pub fn fetch_block(client_wrapper: NodeToNodeWrapper, point: Point) -> Option<Vec<u8>> {
         unsafe {
             let client_ptr = client_wrapper.client_ptr as *mut PeerClient;
@@ -64,6 +142,49 @@ impl NodeToNodeWrapper {
             let _ = Box::into_raw(client);
 
             Some(block)
+        }
+    }
+
+    #[net]
+    pub fn get_tip(client_wrapper: NodeToNodeWrapper) -> Point {
+        unsafe {
+            let cleint_ptr = client_wrapper.client_ptr as *mut PeerClient;
+            let mut client = Box::from_raw(cleint_ptr);
+
+            let tip = RT.block_on(async {
+                client.chainsync().intersect_tip().await.unwrap()
+            });
+
+            let _ = Box::into_raw(client);
+
+            match tip {
+                PallasPoint::Origin => Point { slot: 0, hash: vec![] },
+                PallasPoint::Specific(slot, hash) => Point { slot, hash }
+            }
+        }
+    }
+
+    #[net]
+    pub fn find_intersect(client_wrapper: NodeToNodeWrapper, point: Point) -> Option<Point> {
+        unsafe {
+            let client_ptr = client_wrapper.client_ptr as *mut PeerClient;
+            let mut client = Box::from_raw(client_ptr);
+
+            let known_points = vec![PallasPoint::Specific(point.slot, point.hash)];
+
+            let (intersect_point, _) = RT.block_on(async {
+                client.chainsync().find_intersect(known_points).await.unwrap()
+            });
+
+            let _ = Box::into_raw(client);
+
+            intersect_point.map(|pallas_point| match pallas_point {
+                PallasPoint::Origin => Point {
+                    slot: 0,
+                    hash: vec![],
+                },
+                PallasPoint::Specific(slot, hash) => Point { slot, hash },
+            })
         }
     }
 
