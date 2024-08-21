@@ -18,6 +18,11 @@ namespace PallasDotnetN2n
             public ulong slot;
             public List<byte> hash;
         }
+        public struct NextResponse {
+            public byte action;
+            public Point tip;
+            public List<byte> blockCbor;
+        }
         public struct NodeToNodeWrapper {
             public UIntPtr clientPtr;
         }
@@ -27,18 +32,34 @@ namespace PallasDotnetN2n
         ) {
             return (_FnConnect(_AllocStr(server),networkMagic)).Decode();
         }
+        public static NextResponse ChainSyncNext(
+            NodeToNodeWrapper clientWrapper
+        ) {
+            return (_FnChainSyncNext(_StructNodeToNodeWrapper.Encode(clientWrapper))).Decode();
+        }
         public static List<byte> FetchBlock(
             NodeToNodeWrapper clientWrapper,
             Point point
         ) {
             return _DecodeOption(_FnFetchBlock(_StructNodeToNodeWrapper.Encode(clientWrapper),_StructPoint.Encode(point)), _arg1 => _FreeSlice<byte, byte, List<byte>>(_arg1, 1, 1, _arg2 => _arg2));
         }
+        public static Point GetTip(
+            NodeToNodeWrapper clientWrapper
+        ) {
+            return (_FnGetTip(_StructNodeToNodeWrapper.Encode(clientWrapper))).Decode();
+        }
+        public static Point FindIntersect(
+            NodeToNodeWrapper clientWrapper,
+            Point point
+        ) {
+            return _DecodeOption(_FnFindIntersect(_StructNodeToNodeWrapper.Encode(clientWrapper),_StructPoint.Encode(point)), _arg3 => (_arg3).Decode());
+        }
         public static List<byte> SubmitTx(
             string server,
             ulong magic,
             IReadOnlyCollection<byte> tx
         ) {
-            return _FreeSlice<byte, byte, List<byte>>(_FnSubmitTx(_AllocStr(server),magic,_AllocSlice<byte, byte>(tx, 1, 1, _arg3 => _arg3)), 1, 1, _arg4 => _arg4);
+            return _FreeSlice<byte, byte, List<byte>>(_FnSubmitTx(_AllocStr(server),magic,_AllocSlice<byte, byte>(tx, 1, 1, _arg4 => _arg4)), 1, 1, _arg5 => _arg5);
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _StructPoint {
@@ -47,13 +68,33 @@ namespace PallasDotnetN2n
             public static _StructPoint Encode(Point structArg) {
                 return new _StructPoint {
                     slot = structArg.slot,
-                    hash = _AllocSlice<byte, byte>(structArg.hash, 1, 1, _arg5 => _arg5)
+                    hash = _AllocSlice<byte, byte>(structArg.hash, 1, 1, _arg6 => _arg6)
                 };
             }
             public Point Decode() {
                 return new Point {
                     slot = this.slot,
-                    hash = _FreeSlice<byte, byte, List<byte>>(this.hash, 1, 1, _arg6 => _arg6)
+                    hash = _FreeSlice<byte, byte, List<byte>>(this.hash, 1, 1, _arg7 => _arg7)
+                };
+            }
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct _StructNextResponse {
+            public byte action;
+            public _RawTuple0 tip;
+            public _RawTuple1 blockCbor;
+            public static _StructNextResponse Encode(NextResponse structArg) {
+                return new _StructNextResponse {
+                    action = structArg.action,
+                    tip = _EncodeOption(structArg.tip, _arg8 => _StructPoint.Encode(_arg8)),
+                    blockCbor = _EncodeOption(structArg.blockCbor, _arg9 => _AllocSlice<byte, byte>(_arg9, 1, 1, _arg10 => _arg10))
+                };
+            }
+            public NextResponse Decode() {
+                return new NextResponse {
+                    action = this.action,
+                    tip = _DecodeOption(this.tip, _arg11 => (_arg11).Decode()),
+                    blockCbor = _DecodeOption(this.blockCbor, _arg12 => _FreeSlice<byte, byte, List<byte>>(_arg12, 1, 1, _arg13 => _arg13))
                 };
             }
         }
@@ -76,8 +117,21 @@ namespace PallasDotnetN2n
             _RawSlice server,
             ulong networkMagic
         );
+        [DllImport("pallas_dotnet_n2n", EntryPoint = "rnet_export_chain_sync_next", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _StructNextResponse _FnChainSyncNext(
+            _StructNodeToNodeWrapper clientWrapper
+        );
         [DllImport("pallas_dotnet_n2n", EntryPoint = "rnet_export_fetch_block", CallingConvention = CallingConvention.Cdecl)]
-        private static extern _RawTuple0 _FnFetchBlock(
+        private static extern _RawTuple1 _FnFetchBlock(
+            _StructNodeToNodeWrapper clientWrapper,
+            _StructPoint point
+        );
+        [DllImport("pallas_dotnet_n2n", EntryPoint = "rnet_export_get_tip", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _StructPoint _FnGetTip(
+            _StructNodeToNodeWrapper clientWrapper
+        );
+        [DllImport("pallas_dotnet_n2n", EntryPoint = "rnet_export_find_intersect", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _RawTuple0 _FnFindIntersect(
             _StructNodeToNodeWrapper clientWrapper,
             _StructPoint point
         );
@@ -89,32 +143,51 @@ namespace PallasDotnetN2n
         );
         [StructLayout(LayoutKind.Sequential)]
         private struct _RawTuple0 {
-            public _RawSlice elem0;
+            public _StructPoint elem0;
             public byte elem1;
         }
-        private static _RawTuple0 _EncodeOption<T>(T arg, Func<T, _RawSlice> converter) {
+        private static _RawTuple0 _EncodeOption<T>(T arg, Func<T, _StructPoint> converter) {
             if (arg != null) {
                 return new _RawTuple0 { elem0 = converter(arg), elem1 = 1 };
             } else {
-                return new _RawTuple0 { elem0 = default(_RawSlice), elem1 = 0 };
+                return new _RawTuple0 { elem0 = default(_StructPoint), elem1 = 0 };
             }
         }
-        private static T _DecodeOption<T>(_RawTuple0 arg, Func<_RawSlice, T> converter) {
+        private static T _DecodeOption<T>(_RawTuple0 arg, Func<_StructPoint, T> converter) {
             if (arg.elem1 != 0) {
                 return converter(arg.elem0);
             } else {
                 return default(T);
             }
         }
-        private static _RawTuple0 _EncodeResult(Action f) {
-            try {
-                f();
-                return new _RawTuple0 { elem0 = default(_RawSlice), elem1 = 1 };
-            } catch (Exception e) {
-                return new _RawTuple0 { elem0 = _AllocStr(e.Message), elem1 = 0 };
+        [StructLayout(LayoutKind.Sequential)]
+        private struct _RawTuple1 {
+            public _RawSlice elem0;
+            public byte elem1;
+        }
+        private static _RawTuple1 _EncodeOption<T>(T arg, Func<T, _RawSlice> converter) {
+            if (arg != null) {
+                return new _RawTuple1 { elem0 = converter(arg), elem1 = 1 };
+            } else {
+                return new _RawTuple1 { elem0 = default(_RawSlice), elem1 = 0 };
             }
         }
-        private static void _DecodeResult(_RawTuple0 arg) {
+        private static T _DecodeOption<T>(_RawTuple1 arg, Func<_RawSlice, T> converter) {
+            if (arg.elem1 != 0) {
+                return converter(arg.elem0);
+            } else {
+                return default(T);
+            }
+        }
+        private static _RawTuple1 _EncodeResult(Action f) {
+            try {
+                f();
+                return new _RawTuple1 { elem0 = default(_RawSlice), elem1 = 1 };
+            } catch (Exception e) {
+                return new _RawTuple1 { elem0 = _AllocStr(e.Message), elem1 = 0 };
+            }
+        }
+        private static void _DecodeResult(_RawTuple1 arg) {
             if (arg.elem1 == 0) {
                 throw new RustException(_FreeStr(arg.elem0));
             }
