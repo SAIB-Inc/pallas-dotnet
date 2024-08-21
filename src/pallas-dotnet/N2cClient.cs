@@ -1,12 +1,8 @@
 ﻿using PallasDotnet.Models;
 using NextResponseRs = PallasDotnetN2c.PallasDotnetN2c.NextResponse;
+using PallasDotnet.EventArguments;
 
 namespace PallasDotnet;
-
-public class ChainSyncNextResponseEventArgs(NextResponse nextResponse) : EventArgs
-{
-    public NextResponse NextResponse { get; } = nextResponse;
-}
 
 public class NodeClient
 {
