@@ -16,7 +16,7 @@ static double GetCurrentMemoryUsageInMB()
 }
 
 // N2C Protocol Implementation
-async void ExecuteN2cProtocol()
+static async void ExecuteN2cProtocol()
 {
     NodeClient? nodeClient = new();
     Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
@@ -25,31 +25,12 @@ async void ExecuteN2cProtocol()
     {
         ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
     };
-    nodeClient.Disconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
-    };
 
     nodeClient.Reconnected += (sender, args) =>
     {
         ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
     };
-    nodeClient.Reconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
-    };
 
-    nodeClient.ChainSyncNextResponse += (sender, args) =>
-    {
-        NextResponse nextResponse = args.NextResponse;
-        
-        if (nextResponse.Action == NextResponseAction.Await)
-        {
-            Console.WriteLine("Awaiting...");
-        }
-        else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
-        {
-            string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
     nodeClient.ChainSyncNextResponse += (sender, args) =>
     {
         NextResponse nextResponse = args.NextResponse;
@@ -81,9 +62,6 @@ async void ExecuteN2cProtocol()
                 Console.WriteLine(cborHex);
             }
 
-            Console.WriteLine("--------------------------------------------------------------------------------");
-        }
-    };
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
     };
@@ -95,16 +73,27 @@ async void ExecuteN2cProtocol()
 }
 
 // N2N Protocol Implementation
-async void ExecuteN2nProtocol()
+static async void ExecuteN2nProtocol()
 {
     N2nClient? n2nClient = new();
-    string? connectionStatus = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
+    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
 
-    if (connectionStatus is not null)
+    if (tip is not null)
     {
-        Console.WriteLine(connectionStatus);
+        Console.WriteLine($"Tip: {tip.HashHex}");
     }
 
+    n2nClient.Disconnected += (sender, args) =>
+    {
+        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
+    };
+
+    n2nClient.Reconnected += (sender, args) =>
+    {
+        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
+    };
+
+    // Block Fetch Implementation
     Console.WriteLine("Fetching block...");
     
     byte[] block_cbor = await n2nClient.FetchBlockAsync(new Point(
@@ -113,6 +102,47 @@ async void ExecuteN2nProtocol()
     ));
 
     Console.WriteLine(Convert.ToHexString(block_cbor));
+
+    // Chain Sync Implementation
+    n2nClient.ChainSyncNextResponse += (sender, args) =>
+    {
+        NextResponse nextResponse = args.NextResponse;
+        
+        if (nextResponse.Action == NextResponseAction.Await)
+        {
+            Console.WriteLine("Awaiting...");
+        }
+        else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+        {
+            string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
+
+            Console.WriteLine(action);
+            Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+            
+            if (nextResponse.Action == NextResponseAction.RollForward)
+            {
+                Console.WriteLine("Block:");
+                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+                Console.WriteLine(cborHex);
+            }
+            Console.WriteLine(action);
+            Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
+            
+            if (nextResponse.Action == NextResponseAction.RollForward)
+            {
+                Console.WriteLine("Block:");
+                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+                Console.WriteLine(cborHex);
+            }
+
+            Console.WriteLine("--------------------------------------------------------------------------------");
+        }
+    };
+
+    await n2nClient.StartChainSyncAsync(new Point(
+        57491927,
+        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+    ));
 }
 
 await Task.Run(ExecuteN2nProtocol);
