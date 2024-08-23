@@ -11,7 +11,7 @@ build_for_linux() {
 build_for_macos() {
     cargo build --release --manifest-path ../pallas-dotnet-rs/Cargo.toml
     cp ../pallas-dotnet-rs/target/release/libpallas_dotnet_rs.dylib "./libpallas_dotnet_rs.dylib"
-    rnet-gen ../pallas-dotnet-rs/target/release/libpallas_dotnet_rs.dylib > "./NodeToClientWrapper.cs"
+    rnet-gen ../pallas-dotnet-rs/target/release/libpallas_dotnet_rs.dylib > "./PallasDotnetWrapper.cs"
 }
 
 # Check the operating system
