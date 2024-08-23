@@ -101,7 +101,7 @@ static async void ExecuteN2nProtocol()
         {
             Console.WriteLine("Awaiting...");
         }
-        else if (nextResponse.Action == NextResponseAction.RollBack)
+        else if (nextResponse.Action == NextResponseAction.RollBack || nextResponse.Action == NextResponseAction.RollForward)
         {
             string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
 
