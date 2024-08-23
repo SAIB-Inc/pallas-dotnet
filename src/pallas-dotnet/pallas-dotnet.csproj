@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Pallas.NET</PackageId>
-    <Version>0.1.34</Version>
+    <Version>0.1.35</Version>
     <VersionSuffix>beta</VersionSuffix>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -36,6 +36,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>%(FileName)%(Extension)</Link>
     </None>
+  </ItemGroup>
+
+    <ItemGroup>
+    <Content Include="libpallas_dotnet_rs.so">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <pack>true</pack>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
