@@ -1,6 +1,5 @@
 using PallasDotnet.Models;
 using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
-using PallasDotnet.EventArguments;
 
 namespace PallasDotnet;
 
@@ -15,7 +14,6 @@ public class N2nClient
     private ulong _lastSlot = 0;   
     private byte[] _lastHash = [];
     private byte _client = 0;
-    public event EventHandler<ChainSyncNextResponseEventArgs>? ChainSyncNextResponse;
     public event EventHandler? Disconnected;
     public event EventHandler? Reconnected;
 
@@ -35,7 +33,7 @@ public class N2nClient
         return await GetTipAsync();
     }
 
-    public async Task StartChainSyncAsync(Point? intersection = null)
+    public async IAsyncEnumerable<NextResponse> StartChainSyncAsync(Point? intersection = null)
     {
         if (_n2nClient is null)
         {
@@ -54,52 +52,51 @@ public class N2nClient
             });
         }
 
-        _ = Task.Run(() =>{
-            IsSyncing = true;
-            
-            while (IsSyncing)
+        IsSyncing = true;
+        
+        while (IsSyncing)
+        {
+            NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_n2nClient.Value);
+
+            if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
             {
-                NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_n2nClient.Value);
-
-                if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
+                if (ShouldReconnect)
                 {
-                    if (ShouldReconnect)
-                    {
-                        _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(_server, _magicNumber, _client);
+                    _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(_server, _magicNumber, _client);
 
-                        PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
-                        {
-                            slot = _lastSlot,
-                            hash = [.. _lastHash]
-                        });
-
-                        Reconnected?.Invoke(this, EventArgs.Empty);
-                    }
-                    else
+                    PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                     {
-                        IsSyncing = false;
-                        Disconnected?.Invoke(this, EventArgs.Empty);
-                    }
-                }
-                else if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Await)
-                {
-                    ChainSyncNextResponse?.Invoke(this, new(new(
-                        NextResponseAction.Await,
-                        default!,
-                        default!
-                    )));
+                        slot = _lastSlot,
+                        hash = [.. _lastHash]
+                    });
+
+                    Reconnected?.Invoke(this, EventArgs.Empty);
                 }
                 else
                 {
-                    NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
-                    Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
-
-                    NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
-
-                    ChainSyncNextResponse?.Invoke(this, new(nextResponse));
+                    IsSyncing = false;
+                    Disconnected?.Invoke(this, EventArgs.Empty);
                 }
             }
-        });
+            else if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Await)
+            {
+                yield return new
+                (
+                    NextResponseAction.Await,
+                    default!,
+                    default!
+                );
+            }
+            else
+            {
+                NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
+                Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
+
+                NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
+
+                yield return nextResponse;
+            }
+        }
     }
 
     public async Task<byte[]> FetchBlockAsync(Point? intersection = null)

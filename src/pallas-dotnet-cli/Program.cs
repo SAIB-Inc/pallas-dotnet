@@ -31,10 +31,11 @@ static async void ExecuteN2cProtocol()
         ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
     };
 
-    nodeClient.ChainSyncNextResponse += (sender, args) =>
+    await foreach (NextResponse? nextResponse in nodeClient.StartChainSyncAsync(new Point(
+        57762827,
+        new Hash("7063cb55f1e55fd80aca1ee582a7b489856d704b46e213e268bad14a56f09f35")
+    )))
     {
-        NextResponse nextResponse = args.NextResponse;
-        
         if (nextResponse.Action == NextResponseAction.Await)
         {
             Console.WriteLine("Awaiting...");
@@ -64,12 +65,7 @@ static async void ExecuteN2cProtocol()
 
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
-    };
-
-    await nodeClient.StartChainSyncAsync(new Point(
-        57762827,
-        new Hash("7063cb55f1e55fd80aca1ee582a7b489856d704b46e213e268bad14a56f09f35")
-    ));
+    }
 }
 
 // N2N Protocol Implementation
@@ -93,10 +89,11 @@ static async void ExecuteN2nProtocol()
         ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
     };
 
-    n2nClient.ChainSyncNextResponse += (sender, args) =>
+    await foreach (NextResponse? nextResponse in n2nClient.StartChainSyncAsync(new Point(
+        57751092,
+        new Hash("d924387268359420990f8e71b9e89f0e6e9fa640ccd69acc5bf410ea5911366d")
+    )))
     {
-        NextResponse nextResponse = args.NextResponse;
-        
         if (nextResponse.Action == NextResponseAction.Await)
         {
             Console.WriteLine("Awaiting...");
@@ -114,12 +111,7 @@ static async void ExecuteN2nProtocol()
 
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
-    };
-
-    await n2nClient.StartChainSyncAsync(new Point(
-        57751092,
-        new Hash("d924387268359420990f8e71b9e89f0e6e9fa640ccd69acc5bf410ea5911366d")
-    ));
+    }
 }
 
 // await Task.Run(ExecuteN2cProtocol);

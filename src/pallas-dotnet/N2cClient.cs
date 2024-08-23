@@ -1,6 +1,5 @@
 ﻿using PallasDotnet.Models;
 using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
-using PallasDotnet.EventArguments;
 
 namespace PallasDotnet;
 
@@ -17,7 +16,6 @@ public class NodeClient
     public bool IsSyncing { get; private set; }
     public bool ShouldReconnect { get; set; } = true;
 
-    public event EventHandler<ChainSyncNextResponseEventArgs>? ChainSyncNextResponse;
     public event EventHandler? Disconnected;
     public event EventHandler? Reconnected;
 
@@ -41,7 +39,7 @@ public class NodeClient
         });
     }
 
-    public async Task StartChainSyncAsync(Point? intersection = null)
+    public async IAsyncEnumerable<NextResponse> StartChainSyncAsync(Point? intersection = null)
     {
         if (_n2cClient is null)
         {
@@ -60,54 +58,53 @@ public class NodeClient
             });
         }
 
-        _= Task.Run(() =>
-        {
-            IsSyncing = true;
-            while (IsSyncing)
-            {
-                NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_n2cClient.Value);
+        IsSyncing = true;
+        while (IsSyncing)
+        {   
+            NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_n2cClient.Value);
 
-                if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
+            if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
+            {
+                if (ShouldReconnect)
                 {
-                    if (ShouldReconnect)
+                    _n2cClient = PallasDotnetRs.PallasDotnetRs.Connect(_socketPath, _magicNumber, _client);
+                    PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2cClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                     {
-                        _n2cClient = PallasDotnetRs.PallasDotnetRs.Connect(_socketPath, _magicNumber, _client);
-                        PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2cClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
-                        {
-                            slot = _lastSlot,
-                            hash = [.. _lastHash]
-                        });
-                        Reconnected?.Invoke(this, EventArgs.Empty);
-                    }
-                    else
-                    {
-                        IsSyncing = false;
-                        Disconnected?.Invoke(this, EventArgs.Empty);
-                    }
-                }
-                else if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Await)
-                {
-                    ChainSyncNextResponse?.Invoke(this, new(new(
-                        NextResponseAction.Await,
-                        default!,
-                        default!
-                    )));
+                        slot = _lastSlot,
+                        hash = [.. _lastHash]
+                    });
+                    Reconnected?.Invoke(this, EventArgs.Empty);
                 }
                 else
                 {
-                    NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
-                    Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
-
-                    NextResponse nextResponse = nextResponseAction switch
-                    {
-                        NextResponseAction.RollForward => new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]),
-                        NextResponseAction.RollBack => new(nextResponseAction, tip, default!),
-                        _ => default!
-                    };
-                    ChainSyncNextResponse?.Invoke(this, new(nextResponse));
+                    IsSyncing = false;
+                    Disconnected?.Invoke(this, EventArgs.Empty);
                 }
             }
-        });
+            else if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Await)
+            {
+                yield return new
+                (
+                    NextResponseAction.Await,
+                    default!,
+                    default!
+                );
+            }
+            else
+            {
+                NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
+                Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
+
+                NextResponse nextResponse = nextResponseAction switch
+                {
+                    NextResponseAction.RollForward => new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]),
+                    NextResponseAction.RollBack => new(nextResponseAction, tip, default!),
+                    _ => default!
+                };
+                
+                yield return nextResponse;
+            }
+        }
     }
 
     public async Task<List<byte[]>> GetUtxoByAddressCborAsync(string address)
