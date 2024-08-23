@@ -1,12 +1,12 @@
 using PallasDotnet.Models;
-using NextResponseRs = PallasDotnetN2n.PallasDotnetN2n.NextResponse;
+using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
 using PallasDotnet.EventArguments;
 
 namespace PallasDotnet;
 
 public class N2nClient
 {
-    private PallasDotnetN2n.PallasDotnetN2n.NodeToNodeWrapper? _n2nClient;
+    private PallasDotnetRs.PallasDotnetRs.ClientWrapper? _n2nClient;
     private string _server = string.Empty;
     private ulong _magicNumber = 0;
     private bool IsSyncing { get; set; }
@@ -14,13 +14,14 @@ public class N2nClient
     public bool ShouldReconnect { get; set; } = true; 
     private ulong _lastSlot = 0;   
     private byte[] _lastHash = [];
+    private byte _client = 0;
     public event EventHandler<ChainSyncNextResponseEventArgs>? ChainSyncNextResponse;
     public event EventHandler? Disconnected;
     public event EventHandler? Reconnected;
 
-    public async Task<Point> ConnectAsync(string server, ulong magicNumber)
+    public async Task<Point> ConnectAsync(string server, ulong magicNumber, Client client)
     {
-        _n2nClient = PallasDotnetN2n.PallasDotnetN2n.Connect(server, magicNumber);
+        _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(server, magicNumber, (byte)client);
 
         if (_n2nClient is null)
         {
@@ -29,6 +30,7 @@ public class N2nClient
 
         _server = server;
         _magicNumber = magicNumber;  
+        _client = (byte)client;
 
         return await GetTipAsync();
     }
@@ -44,7 +46,7 @@ public class N2nClient
         {
             await Task.Run(() =>
             {
-                PallasDotnetN2n.PallasDotnetN2n.FindIntersect(_n2nClient.Value, new PallasDotnetN2n.PallasDotnetN2n.Point
+                PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                 {
                     slot = intersection.Slot,
                     hash = new List<byte>(intersection.Hash.Bytes)
@@ -57,15 +59,15 @@ public class N2nClient
             
             while (IsSyncing)
             {
-                NextResponseRs nextResponseRs = PallasDotnetN2n.PallasDotnetN2n.ChainSyncNext(_n2nClient.Value);
+                NextResponseRs nextResponseRs = PallasDotnetRs.PallasDotnetRs.ChainSyncNext(_n2nClient.Value);
 
                 if ((NextResponseAction)nextResponseRs.action == NextResponseAction.Error)
                 {
                     if (ShouldReconnect)
                     {
-                        _n2nClient = PallasDotnetN2n.PallasDotnetN2n.Connect(_server, _magicNumber);
+                        _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(_server, _magicNumber, _client);
 
-                        PallasDotnetN2n.PallasDotnetN2n.FindIntersect(_n2nClient.Value, new PallasDotnetN2n.PallasDotnetN2n.Point
+                        PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                         {
                             slot = _lastSlot,
                             hash = [.. _lastHash]
@@ -113,7 +115,7 @@ public class N2nClient
         }
 
         return await Task.Run(() => {
-            return PallasDotnetN2n.PallasDotnetN2n.FetchBlock(_n2nClient.Value, new PallasDotnetN2n.PallasDotnetN2n.Point
+            return PallasDotnetRs.PallasDotnetRs.FetchBlock(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
             {
                 slot = intersection.Slot,
                 hash = new List<byte>(intersection.Hash.Bytes)
@@ -128,7 +130,7 @@ public class N2nClient
             throw new Exception("Not connected to node");
         }
 
-        PallasDotnetN2n.PallasDotnetN2n.Point tip = PallasDotnetN2n.PallasDotnetN2n.GetTip(_n2nClient.Value);
+        PallasDotnetRs.PallasDotnetRs.Point tip = PallasDotnetRs.PallasDotnetRs.GetTip(_n2nClient.Value);
         
         return await Task.Run(() => {
             return new Point(tip.slot, new([..tip.hash]));

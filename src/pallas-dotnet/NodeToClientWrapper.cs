@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace PallasDotnetN2c
+namespace PallasDotnetRs
 {    
-    public static class PallasDotnetN2c
+    public static class PallasDotnetRs
     {
         public class RustException: Exception {
             public RustException(string message) : base(message) { }
@@ -20,33 +20,14 @@ namespace PallasDotnetN2c
             public ulong slot;
             public List<byte> hash;
         }
-        public struct TransactionInput {
-            public List<byte> id;
-            public ulong index;
-        }
-        public struct Datum {
-            public byte datumType;
-            public List<byte> data;
-        }
-        public struct TransactionOutput {
-            public List<byte> address;
-            public Value amount;
-            public UIntPtr index;
-            public Datum datum;
-            public List<byte> raw;
-        }
-        public struct Value {
-            public ulong coin;
-            public Dictionary<List<byte>,Dictionary<List<byte>,ulong>> multiAsset;
-        }
         public struct NextResponse {
             public byte action;
             public Point tip;
             public List<byte> blockCbor;
         }
-        public struct NodeToClientWrapper {
+        public struct ClientWrapper {
+            public byte client;
             public UIntPtr clientPtr;
-            public string socketPath;
         }
         public struct PallasUtility {
         }
@@ -66,48 +47,62 @@ namespace PallasDotnetN2c
         ) {
             return _FnPreProductionMagic();
         }
-        public static NodeToClientWrapper Connect(
-            string socketPath,
-            ulong networkMagic
+        public static ClientWrapper Connect(
+            string pathOrServer,
+            ulong networkMagic,
+            byte client
         ) {
-            return (_FnConnect(_AllocStr(socketPath),networkMagic)).Decode();
+            return (_FnConnect(_AllocStr(pathOrServer),networkMagic,client)).Decode();
         }
         public static List<List<byte>> GetUtxoByAddressCbor(
-            NodeToClientWrapper clientWrapper,
+            ClientWrapper clientWrapper,
             string address
         ) {
-            return _FreeSlice<List<byte>, _RawSlice, List<List<byte>>>(_FnGetUtxoByAddressCbor(_StructNodeToClientWrapper.Encode(clientWrapper),_AllocStr(address)), 16, 8, _arg1 => _FreeSlice<byte, byte, List<byte>>(_arg1, 1, 1, _arg2 => _arg2));
+            return _FreeSlice<List<byte>, _RawSlice, List<List<byte>>>(_FnGetUtxoByAddressCbor(_StructClientWrapper.Encode(clientWrapper),_AllocStr(address)), 16, 8, _arg1 => _FreeSlice<byte, byte, List<byte>>(_arg1, 1, 1, _arg2 => _arg2));
         }
         public static Point GetTip(
-            NodeToClientWrapper clientWrapper
+            ClientWrapper clientWrapper
         ) {
-            return (_FnGetTip(_StructNodeToClientWrapper.Encode(clientWrapper))).Decode();
+            return (_FnGetTip(_StructClientWrapper.Encode(clientWrapper))).Decode();
         }
         public static Point FindIntersect(
-            NodeToClientWrapper clientWrapper,
+            ClientWrapper clientWrapper,
             Point knownPoint
         ) {
-            return _DecodeOption(_FnFindIntersect(_StructNodeToClientWrapper.Encode(clientWrapper),_StructPoint.Encode(knownPoint)), _arg3 => (_arg3).Decode());
+            return _DecodeOption(_FnFindIntersect(_StructClientWrapper.Encode(clientWrapper),_StructPoint.Encode(knownPoint)), _arg3 => (_arg3).Decode());
         }
         public static NextResponse ChainSyncNext(
-            NodeToClientWrapper clientWrapper
+            ClientWrapper clientWrapper
         ) {
-            return (_FnChainSyncNext(_StructNodeToClientWrapper.Encode(clientWrapper))).Decode();
+            return (_FnChainSyncNext(_StructClientWrapper.Encode(clientWrapper))).Decode();
         }
         public static bool ChainSyncHasAgency(
-            NodeToClientWrapper clientWrapper
+            ClientWrapper clientWrapper
         ) {
-            return (_FnChainSyncHasAgency(_StructNodeToClientWrapper.Encode(clientWrapper)) != 0);
+            return (_FnChainSyncHasAgency(_StructClientWrapper.Encode(clientWrapper)) != 0);
         }
         public static void Disconnect(
-            NodeToClientWrapper clientWrapper
+            ClientWrapper clientWrapper
         ) {
-            _FnDisconnect(_StructNodeToClientWrapper.Encode(clientWrapper));
+            _FnDisconnect(_StructClientWrapper.Encode(clientWrapper));
+        }
+        public static List<byte> FetchBlock(
+            ClientWrapper clientWrapper,
+            Point point
+        ) {
+            return _DecodeOption(_FnFetchBlock(_StructClientWrapper.Encode(clientWrapper),_StructPoint.Encode(point)), _arg4 => _FreeSlice<byte, byte, List<byte>>(_arg4, 1, 1, _arg5 => _arg5));
+        }
+        public static List<byte> SubmitTx(
+            string server,
+            ulong magic,
+            IReadOnlyCollection<byte> tx
+        ) {
+            return _FreeSlice<byte, byte, List<byte>>(_FnSubmitTx(_AllocStr(server),magic,_AllocSlice<byte, byte>(tx, 1, 1, _arg6 => _arg6)), 1, 1, _arg7 => _arg7);
         }
         public static string AddressBytesToBech32(
             IReadOnlyCollection<byte> addressBytes
         ) {
-            return _FreeStr(_FnAddressBytesToBech32(_AllocSlice<byte, byte>(addressBytes, 1, 1, _arg4 => _arg4)));
+            return _FreeStr(_FnAddressBytesToBech32(_AllocSlice<byte, byte>(addressBytes, 1, 1, _arg8 => _arg8)));
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _StructNetworkMagic {
@@ -127,127 +122,50 @@ namespace PallasDotnetN2c
             public static _StructPoint Encode(Point structArg) {
                 return new _StructPoint {
                     slot = structArg.slot,
-                    hash = _AllocSlice<byte, byte>(structArg.hash, 1, 1, _arg5 => _arg5)
+                    hash = _AllocSlice<byte, byte>(structArg.hash, 1, 1, _arg9 => _arg9)
                 };
             }
             public Point Decode() {
                 return new Point {
                     slot = this.slot,
-                    hash = _FreeSlice<byte, byte, List<byte>>(this.hash, 1, 1, _arg6 => _arg6)
-                };
-            }
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _StructTransactionInput {
-            public _RawSlice id;
-            public ulong index;
-            public static _StructTransactionInput Encode(TransactionInput structArg) {
-                return new _StructTransactionInput {
-                    id = _AllocSlice<byte, byte>(structArg.id, 1, 1, _arg7 => _arg7),
-                    index = structArg.index
-                };
-            }
-            public TransactionInput Decode() {
-                return new TransactionInput {
-                    id = _FreeSlice<byte, byte, List<byte>>(this.id, 1, 1, _arg8 => _arg8),
-                    index = this.index
-                };
-            }
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _StructDatum {
-            public byte datumType;
-            public _RawTuple0 data;
-            public static _StructDatum Encode(Datum structArg) {
-                return new _StructDatum {
-                    datumType = structArg.datumType,
-                    data = _EncodeOption(structArg.data, _arg9 => _AllocSlice<byte, byte>(_arg9, 1, 1, _arg10 => _arg10))
-                };
-            }
-            public Datum Decode() {
-                return new Datum {
-                    datumType = this.datumType,
-                    data = _DecodeOption(this.data, _arg11 => _FreeSlice<byte, byte, List<byte>>(_arg11, 1, 1, _arg12 => _arg12))
-                };
-            }
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _StructTransactionOutput {
-            public _RawSlice address;
-            public _StructValue amount;
-            public UIntPtr index;
-            public _RawTuple1 datum;
-            public _RawSlice raw;
-            public static _StructTransactionOutput Encode(TransactionOutput structArg) {
-                return new _StructTransactionOutput {
-                    address = _AllocSlice<byte, byte>(structArg.address, 1, 1, _arg13 => _arg13),
-                    amount = _StructValue.Encode(structArg.amount),
-                    index = structArg.index,
-                    datum = _EncodeOption(structArg.datum, _arg14 => _StructDatum.Encode(_arg14)),
-                    raw = _AllocSlice<byte, byte>(structArg.raw, 1, 1, _arg15 => _arg15)
-                };
-            }
-            public TransactionOutput Decode() {
-                return new TransactionOutput {
-                    address = _FreeSlice<byte, byte, List<byte>>(this.address, 1, 1, _arg16 => _arg16),
-                    amount = (this.amount).Decode(),
-                    index = this.index,
-                    datum = _DecodeOption(this.datum, _arg17 => (_arg17).Decode()),
-                    raw = _FreeSlice<byte, byte, List<byte>>(this.raw, 1, 1, _arg18 => _arg18)
-                };
-            }
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _StructValue {
-            public ulong coin;
-            public _RawSlice multiAsset;
-            public static _StructValue Encode(Value structArg) {
-                return new _StructValue {
-                    coin = structArg.coin,
-                    multiAsset = _AllocDict<List<byte>, Dictionary<List<byte>,ulong>, _RawTuple2>(structArg.multiAsset, 32, 8, _arg19 => ((Func<(List<byte>,Dictionary<List<byte>,ulong>), _RawTuple2>)(_arg20 => new _RawTuple2 { elem0 = _AllocSlice<byte, byte>(_arg20.Item1, 1, 1, _arg21 => _arg21),elem1 = _AllocDict<List<byte>, ulong, _RawTuple3>(_arg20.Item2, 24, 8, _arg22 => ((Func<(List<byte>,ulong), _RawTuple3>)(_arg23 => new _RawTuple3 { elem0 = _AllocSlice<byte, byte>(_arg23.Item1, 1, 1, _arg24 => _arg24),elem1 = _arg23.Item2 }))(_arg22)) }))(_arg19))
-                };
-            }
-            public Value Decode() {
-                return new Value {
-                    coin = this.coin,
-                    multiAsset = _FreeDict<List<byte>, Dictionary<List<byte>,ulong>, _RawTuple2, Dictionary<List<byte>, Dictionary<List<byte>,ulong>>>(this.multiAsset, 32, 8, _arg25 => ((Func<_RawTuple2, (List<byte>,Dictionary<List<byte>,ulong>)>)(_arg26 => (_FreeSlice<byte, byte, List<byte>>(_arg26.elem0, 1, 1, _arg27 => _arg27),_FreeDict<List<byte>, ulong, _RawTuple3, Dictionary<List<byte>, ulong>>(_arg26.elem1, 24, 8, _arg28 => ((Func<_RawTuple3, (List<byte>,ulong)>)(_arg29 => (_FreeSlice<byte, byte, List<byte>>(_arg29.elem0, 1, 1, _arg30 => _arg30),_arg29.elem1)))(_arg28)))))(_arg25))
+                    hash = _FreeSlice<byte, byte, List<byte>>(this.hash, 1, 1, _arg10 => _arg10)
                 };
             }
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _StructNextResponse {
             public byte action;
-            public _RawTuple4 tip;
-            public _RawTuple0 blockCbor;
+            public _RawTuple0 tip;
+            public _RawTuple1 blockCbor;
             public static _StructNextResponse Encode(NextResponse structArg) {
                 return new _StructNextResponse {
                     action = structArg.action,
-                    tip = _EncodeOption(structArg.tip, _arg31 => _StructPoint.Encode(_arg31)),
-                    blockCbor = _EncodeOption(structArg.blockCbor, _arg32 => _AllocSlice<byte, byte>(_arg32, 1, 1, _arg33 => _arg33))
+                    tip = _EncodeOption(structArg.tip, _arg11 => _StructPoint.Encode(_arg11)),
+                    blockCbor = _EncodeOption(structArg.blockCbor, _arg12 => _AllocSlice<byte, byte>(_arg12, 1, 1, _arg13 => _arg13))
                 };
             }
             public NextResponse Decode() {
                 return new NextResponse {
                     action = this.action,
-                    tip = _DecodeOption(this.tip, _arg34 => (_arg34).Decode()),
-                    blockCbor = _DecodeOption(this.blockCbor, _arg35 => _FreeSlice<byte, byte, List<byte>>(_arg35, 1, 1, _arg36 => _arg36))
+                    tip = _DecodeOption(this.tip, _arg14 => (_arg14).Decode()),
+                    blockCbor = _DecodeOption(this.blockCbor, _arg15 => _FreeSlice<byte, byte, List<byte>>(_arg15, 1, 1, _arg16 => _arg16))
                 };
             }
         }
         [StructLayout(LayoutKind.Sequential)]
-        private struct _StructNodeToClientWrapper {
+        private struct _StructClientWrapper {
+            public byte client;
             public UIntPtr clientPtr;
-            public _RawSlice socketPath;
-            public static _StructNodeToClientWrapper Encode(NodeToClientWrapper structArg) {
-                return new _StructNodeToClientWrapper {
-                    clientPtr = structArg.clientPtr,
-                    socketPath = _AllocStr(structArg.socketPath)
+            public static _StructClientWrapper Encode(ClientWrapper structArg) {
+                return new _StructClientWrapper {
+                    client = structArg.client,
+                    clientPtr = structArg.clientPtr
                 };
             }
-            public NodeToClientWrapper Decode() {
-                return new NodeToClientWrapper {
-                    clientPtr = this.clientPtr,
-                    socketPath = _FreeStr(this.socketPath)
+            public ClientWrapper Decode() {
+                return new ClientWrapper {
+                    client = this.client,
+                    clientPtr = this.clientPtr
                 };
             }
         }
@@ -262,131 +180,114 @@ namespace PallasDotnetN2c
                 };
             }
         }
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_mainnet_magic", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_mainnet_magic", CallingConvention = CallingConvention.Cdecl)]
         private static extern ulong _FnMainnetMagic(
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_testnet_magic", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_testnet_magic", CallingConvention = CallingConvention.Cdecl)]
         private static extern ulong _FnTestnetMagic(
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_preview_magic", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_preview_magic", CallingConvention = CallingConvention.Cdecl)]
         private static extern ulong _FnPreviewMagic(
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_pre_production_magic", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_pre_production_magic", CallingConvention = CallingConvention.Cdecl)]
         private static extern ulong _FnPreProductionMagic(
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_connect", CallingConvention = CallingConvention.Cdecl)]
-        private static extern _StructNodeToClientWrapper _FnConnect(
-            _RawSlice socketPath,
-            ulong networkMagic
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_connect", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _StructClientWrapper _FnConnect(
+            _RawSlice pathOrServer,
+            ulong networkMagic,
+            byte client
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_get_utxo_by_address_cbor", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_get_utxo_by_address_cbor", CallingConvention = CallingConvention.Cdecl)]
         private static extern _RawSlice _FnGetUtxoByAddressCbor(
-            _StructNodeToClientWrapper clientWrapper,
+            _StructClientWrapper clientWrapper,
             _RawSlice address
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_get_tip", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_get_tip", CallingConvention = CallingConvention.Cdecl)]
         private static extern _StructPoint _FnGetTip(
-            _StructNodeToClientWrapper clientWrapper
+            _StructClientWrapper clientWrapper
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_find_intersect", CallingConvention = CallingConvention.Cdecl)]
-        private static extern _RawTuple4 _FnFindIntersect(
-            _StructNodeToClientWrapper clientWrapper,
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_find_intersect", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _RawTuple0 _FnFindIntersect(
+            _StructClientWrapper clientWrapper,
             _StructPoint knownPoint
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_chain_sync_next", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_chain_sync_next", CallingConvention = CallingConvention.Cdecl)]
         private static extern _StructNextResponse _FnChainSyncNext(
-            _StructNodeToClientWrapper clientWrapper
+            _StructClientWrapper clientWrapper
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_chain_sync_has_agency", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_chain_sync_has_agency", CallingConvention = CallingConvention.Cdecl)]
         private static extern byte _FnChainSyncHasAgency(
-            _StructNodeToClientWrapper clientWrapper
+            _StructClientWrapper clientWrapper
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_disconnect", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_disconnect", CallingConvention = CallingConvention.Cdecl)]
         private static extern void _FnDisconnect(
-            _StructNodeToClientWrapper clientWrapper
+            _StructClientWrapper clientWrapper
         );
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_export_address_bytes_to_bech32", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_fetch_block", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _RawTuple1 _FnFetchBlock(
+            _StructClientWrapper clientWrapper,
+            _StructPoint point
+        );
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_submit_tx", CallingConvention = CallingConvention.Cdecl)]
+        private static extern _RawSlice _FnSubmitTx(
+            _RawSlice server,
+            ulong magic,
+            _RawSlice tx
+        );
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_address_bytes_to_bech32", CallingConvention = CallingConvention.Cdecl)]
         private static extern _RawSlice _FnAddressBytesToBech32(
             _RawSlice addressBytes
         );
         [StructLayout(LayoutKind.Sequential)]
         private struct _RawTuple0 {
-            public _RawSlice elem0;
+            public _StructPoint elem0;
             public byte elem1;
         }
-        private static _RawTuple0 _EncodeOption<T>(T arg, Func<T, _RawSlice> converter) {
+        private static _RawTuple0 _EncodeOption<T>(T arg, Func<T, _StructPoint> converter) {
             if (arg != null) {
                 return new _RawTuple0 { elem0 = converter(arg), elem1 = 1 };
             } else {
-                return new _RawTuple0 { elem0 = default(_RawSlice), elem1 = 0 };
+                return new _RawTuple0 { elem0 = default(_StructPoint), elem1 = 0 };
             }
         }
-        private static T _DecodeOption<T>(_RawTuple0 arg, Func<_RawSlice, T> converter) {
+        private static T _DecodeOption<T>(_RawTuple0 arg, Func<_StructPoint, T> converter) {
             if (arg.elem1 != 0) {
                 return converter(arg.elem0);
             } else {
                 return default(T);
-            }
-        }
-        private static _RawTuple0 _EncodeResult(Action f) {
-            try {
-                f();
-                return new _RawTuple0 { elem0 = default(_RawSlice), elem1 = 1 };
-            } catch (Exception e) {
-                return new _RawTuple0 { elem0 = _AllocStr(e.Message), elem1 = 0 };
-            }
-        }
-        private static void _DecodeResult(_RawTuple0 arg) {
-            if (arg.elem1 == 0) {
-                throw new RustException(_FreeStr(arg.elem0));
             }
         }
         [StructLayout(LayoutKind.Sequential)]
         private struct _RawTuple1 {
-            public _StructDatum elem0;
+            public _RawSlice elem0;
             public byte elem1;
         }
-        private static _RawTuple1 _EncodeOption<T>(T arg, Func<T, _StructDatum> converter) {
+        private static _RawTuple1 _EncodeOption<T>(T arg, Func<T, _RawSlice> converter) {
             if (arg != null) {
                 return new _RawTuple1 { elem0 = converter(arg), elem1 = 1 };
             } else {
-                return new _RawTuple1 { elem0 = default(_StructDatum), elem1 = 0 };
+                return new _RawTuple1 { elem0 = default(_RawSlice), elem1 = 0 };
             }
         }
-        private static T _DecodeOption<T>(_RawTuple1 arg, Func<_StructDatum, T> converter) {
+        private static T _DecodeOption<T>(_RawTuple1 arg, Func<_RawSlice, T> converter) {
             if (arg.elem1 != 0) {
                 return converter(arg.elem0);
             } else {
                 return default(T);
             }
         }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _RawTuple2 {
-            public _RawSlice elem0;
-            public _RawSlice elem1;
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _RawTuple3 {
-            public _RawSlice elem0;
-            public ulong elem1;
-        }
-        [StructLayout(LayoutKind.Sequential)]
-        private struct _RawTuple4 {
-            public _StructPoint elem0;
-            public byte elem1;
-        }
-        private static _RawTuple4 _EncodeOption<T>(T arg, Func<T, _StructPoint> converter) {
-            if (arg != null) {
-                return new _RawTuple4 { elem0 = converter(arg), elem1 = 1 };
-            } else {
-                return new _RawTuple4 { elem0 = default(_StructPoint), elem1 = 0 };
+        private static _RawTuple1 _EncodeResult(Action f) {
+            try {
+                f();
+                return new _RawTuple1 { elem0 = default(_RawSlice), elem1 = 1 };
+            } catch (Exception e) {
+                return new _RawTuple1 { elem0 = _AllocStr(e.Message), elem1 = 0 };
             }
         }
-        private static T _DecodeOption<T>(_RawTuple4 arg, Func<_StructPoint, T> converter) {
-            if (arg.elem1 != 0) {
-                return converter(arg.elem0);
-            } else {
-                return default(T);
+        private static void _DecodeResult(_RawTuple1 arg) {
+            if (arg.elem1 == 0) {
+                throw new RustException(_FreeStr(arg.elem0));
             }
         }
 
@@ -460,10 +361,10 @@ namespace PallasDotnetN2c
             }
         }
 
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_alloc", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_alloc", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr _Alloc( UIntPtr size, UIntPtr align);
 
-        [DllImport("pallas_dotnet_n2c", EntryPoint = "rnet_free", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_free", CallingConvention = CallingConvention.Cdecl)]
         private static extern void _Free(IntPtr ptr, UIntPtr size, UIntPtr align);
 
         [StructLayout(LayoutKind.Sequential)]

@@ -19,7 +19,7 @@ static double GetCurrentMemoryUsageInMB()
 static async void ExecuteN2cProtocol()
 {
     NodeClient? nodeClient = new();
-    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
+    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW, Client.N2C);
 
     nodeClient.Disconnected += (sender, args) =>
     {
@@ -67,8 +67,8 @@ static async void ExecuteN2cProtocol()
     };
 
     await nodeClient.StartChainSyncAsync(new Point(
-        57491927,
-        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+        57762827,
+        new Hash("7063cb55f1e55fd80aca1ee582a7b489856d704b46e213e268bad14a56f09f35")
     ));
 }
 
@@ -76,7 +76,7 @@ static async void ExecuteN2cProtocol()
 static async void ExecuteN2nProtocol()
 {
     N2nClient? n2nClient = new();
-    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
+    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW, Client.N2N);
 
     if (tip is not null)
     {
@@ -93,17 +93,6 @@ static async void ExecuteN2nProtocol()
         ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
     };
 
-    // Block Fetch Implementation
-    Console.WriteLine("Fetching block...");
-    
-    byte[] block_cbor = await n2nClient.FetchBlockAsync(new Point(
-        57751511,
-        new Hash("526460b6e12cd7a0c7299e0a0d84bb3fc46d1cfe85b77766a4adbdf9b6765fa0")
-    ));
-
-    Console.WriteLine(Convert.ToHexString(block_cbor));
-
-    // Chain Sync Implementation
     n2nClient.ChainSyncNextResponse += (sender, args) =>
     {
         NextResponse nextResponse = args.NextResponse;
@@ -112,7 +101,7 @@ static async void ExecuteN2nProtocol()
         {
             Console.WriteLine("Awaiting...");
         }
-        else if (nextResponse.Action == NextResponseAction.RollForward || nextResponse.Action == NextResponseAction.RollBack)
+        else if (nextResponse.Action == NextResponseAction.RollBack)
         {
             string action = nextResponse.Action == NextResponseAction.RollBack ? "Rolling back..." : "Rolling forward...";
 
@@ -133,6 +122,7 @@ static async void ExecuteN2nProtocol()
     ));
 }
 
+// await Task.Run(ExecuteN2cProtocol);
 await Task.Run(ExecuteN2nProtocol);
 
 while (true)

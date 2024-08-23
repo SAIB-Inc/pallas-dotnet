@@ -39,15 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="libpallas_dotnet_n2c.dylib">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-      <pack>true</pack>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="libpallas_dotnet_n2n.dylib">
+    <Content Include="libpallas_dotnet_rs.dylib">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <PackageCopyToOutput>true</PackageCopyToOutput>
       <pack>true</pack>

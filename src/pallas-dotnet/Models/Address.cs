@@ -5,6 +5,6 @@ public class Address(byte[] addressBytes)
     public byte[] Raw => addressBytes;
     
     public string ToBech32()
-        => PallasDotnetN2c.PallasDotnetN2c
+        => PallasDotnetRs.PallasDotnetRs
                 .AddressBytesToBech32(addressBytes);
 }
