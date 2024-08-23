@@ -92,15 +92,7 @@ public class N2nClient
                     NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
                     Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
 
-                    NextResponse nextResponse = nextResponseAction switch
-                    {
-                        NextResponseAction.RollForward => new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]),
-                        NextResponseAction.RollBack => new(nextResponseAction, tip, default!),
-                        _ => default!
-                    };
-
-                    _lastSlot = nextResponse.Tip.Slot;
-                    _lastHash = nextResponse.Tip.Hash.Bytes;
+                    NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
 
                     ChainSyncNextResponse?.Invoke(this, new(nextResponse));
                 }

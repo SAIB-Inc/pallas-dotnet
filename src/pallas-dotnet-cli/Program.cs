@@ -97,8 +97,8 @@ static async void ExecuteN2nProtocol()
     Console.WriteLine("Fetching block...");
     
     byte[] block_cbor = await n2nClient.FetchBlockAsync(new Point(
-        57491927,
-        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+        57751511,
+        new Hash("526460b6e12cd7a0c7299e0a0d84bb3fc46d1cfe85b77766a4adbdf9b6765fa0")
     ));
 
     Console.WriteLine(Convert.ToHexString(block_cbor));
@@ -118,30 +118,18 @@ static async void ExecuteN2nProtocol()
 
             Console.WriteLine(action);
             Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
-            
-            if (nextResponse.Action == NextResponseAction.RollForward)
-            {
-                Console.WriteLine("Block:");
-                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
-                Console.WriteLine(cborHex);
-            }
-            Console.WriteLine(action);
-            Console.WriteLine($"Slot: {nextResponse.Tip.Slot} Hash: {nextResponse.Tip.Hash}");
-            
-            if (nextResponse.Action == NextResponseAction.RollForward)
-            {
-                Console.WriteLine("Block:");
-                string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
-                Console.WriteLine(cborHex);
-            }
+
+            Console.WriteLine("Block:");
+            string cborHex = Convert.ToHexString(nextResponse.BlockCbor);
+            Console.WriteLine(cborHex);
 
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
     };
 
     await n2nClient.StartChainSyncAsync(new Point(
-        57491927,
-        new Hash("7f00f6f9d844f7ec5937fa7ec43fcce9f55a8b47fa3703a08cd50c7be6869735")
+        57751092,
+        new Hash("d924387268359420990f8e71b9e89f0e6e9fa640ccd69acc5bf410ea5911366d")
     ));
 }
 
