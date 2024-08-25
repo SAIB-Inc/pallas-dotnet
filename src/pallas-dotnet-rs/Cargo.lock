@@ -865,8 +865,7 @@ checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 [[package]]
 name = "pallas"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6786437b5ffa18e3125bd39ef8487c0238648bd8ccc7ee98a04e7883c252c87f"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "pallas-addresses",
  "pallas-codec",
@@ -882,8 +881,7 @@ dependencies = [
 [[package]]
 name = "pallas-addresses"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1659716de2b4e26cbef0fd7ff14aaf97491cea38b61b6659368aaf2b73be4b35"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "base58",
  "bech32",
@@ -898,8 +896,7 @@ dependencies = [
 [[package]]
 name = "pallas-applying"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399730e3863568bce30d896c058bbb498aca089101d73a4a118e0b58f2cfe356"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "hex",
  "pallas-addresses",
@@ -913,8 +910,7 @@ dependencies = [
 [[package]]
 name = "pallas-codec"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5eaf6270dbf928c57e348fe317e3c29524274f57e1b46c5aa5f7c0e91709180c"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "hex",
  "minicbor",
@@ -925,8 +921,7 @@ dependencies = [
 [[package]]
 name = "pallas-configs"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "772ac5e0b7ba00bb3e8819ee6477f58af15d8b1b817d142b8079a4e5ae5524bc"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "base64 0.22.0",
  "hex",
@@ -943,8 +938,7 @@ dependencies = [
 [[package]]
 name = "pallas-crypto"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8563598b51b66b5f29ddce468b25c56984ef3d0ba6184b5106c9642f8cb5bb11"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "cryptoxide",
  "hex",
@@ -970,8 +964,7 @@ dependencies = [
 [[package]]
 name = "pallas-network"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba3a14b752833e2a18ba9238e5bbf87e185c9dd85e8055e7d24e2a88b9030bf9"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "byteorder",
  "hex",
@@ -988,8 +981,7 @@ dependencies = [
 [[package]]
 name = "pallas-primitives"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c9458b82f0203aaadfb4bf996a7dbc5407caf8e31f035f5268be1f10e174578"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "base58",
  "bech32",
@@ -1004,8 +996,7 @@ dependencies = [
 [[package]]
 name = "pallas-traverse"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b2781b2bf2a69371c874abcb6b24e5105875c8017b9a9713f9a987fa9c6d12a"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "hex",
  "itertools 0.13.0",
@@ -1021,8 +1012,7 @@ dependencies = [
 [[package]]
 name = "pallas-txbuilder"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da67700eb57469ab06aa13a12ec2f11a566624010606adba485ef76099b769f3"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "hex",
  "pallas-addresses",
@@ -1039,8 +1029,7 @@ dependencies = [
 [[package]]
 name = "pallas-utxorpc"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03961251d9b18f24506d29673f55808ac7e47c6757c06b94e1f3ea35b487c32f"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "pallas-applying",
  "pallas-codec",
@@ -1054,8 +1043,7 @@ dependencies = [
 [[package]]
 name = "pallas-wallet"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc19596157e50f54bdbb4a9d9c9feb97c6b347741d08bd57d8f93f61af910c82"
+source = "git+https://github.com/Mercurial/pallas.git?branch=fix/codec/temporary-allow-empty-multi-asset#cd012b471f23c8a1ad9b4723f80806292c1fdb5d"
 dependencies = [
  "bech32",
  "bip39",
