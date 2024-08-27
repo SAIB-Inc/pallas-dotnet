@@ -19,7 +19,7 @@ static double GetCurrentMemoryUsageInMB()
 static async void ExecuteN2cProtocol()
 {
     NodeClient? nodeClient = new();
-    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW, Client.N2C);
+    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
 
     nodeClient.Disconnected += (sender, args) =>
     {
@@ -72,7 +72,7 @@ static async void ExecuteN2cProtocol()
 static async void ExecuteN2nProtocol()
 {
     N2nClient? n2nClient = new();
-    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW, Client.N2N);
+    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
 
     if (tip is not null)
     {
@@ -114,8 +114,8 @@ static async void ExecuteN2nProtocol()
     }
 }
 
-// await Task.Run(ExecuteN2cProtocol);
-await Task.Run(ExecuteN2nProtocol);
+await Task.Run(ExecuteN2cProtocol);
+// await Task.Run(ExecuteN2nProtocol);
 
 while (true)
 {

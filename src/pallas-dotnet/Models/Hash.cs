@@ -2,6 +2,8 @@
 
 public class Hash
 {
+    public byte[] Bytes { get; set; }
+
     public Hash(byte[] bytes)
     {
         Bytes = bytes;
@@ -11,8 +13,6 @@ public class Hash
     {
         Bytes = Convert.FromHexString(hex);
     }
-
-    public byte[] Bytes { get; set; }
 
     public string ToHex()
     {
@@ -33,6 +33,7 @@ public class Hash
     {
         return Bytes.GetHashCode();
     }
+    
     public override bool Equals(object? obj)
     {
         return obj is Hash hash && Enumerable.SequenceEqual(Bytes, hash.Bytes);
