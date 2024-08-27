@@ -54,12 +54,6 @@ pub struct Point {
     hash: Vec<u8>,
 }
 
-pub type Coin = u64;
-pub type MintCoin = i64;
-pub type PolicyId = Vec<u8>;
-pub type AssetName = Vec<u8>;
-pub type RedeemerTag = u8;
-
 #[derive(Net)]
 pub struct NextResponse {
     action: u8,
@@ -146,7 +140,7 @@ impl ClientWrapper {
                         .map(|tag_wrap_instance| tag_wrap_instance.0.deref().clone())
                         .collect()
                 },
-                _ => panic!("unknown client type for state_query_protocol")
+                _ => panic!("unknown client type for get_utxo_by_address_cbor")
             }
         }
     }
@@ -197,7 +191,7 @@ impl ClientWrapper {
                         PallasPoint::Specific(slot, hash) => Point { slot, hash }
                     }
                 },
-                _ => panic!("unknown client type for get_tip_fn")
+                _ => panic!("unknown client type for get_tip")
             }
         }
     }
@@ -256,7 +250,7 @@ impl ClientWrapper {
                         PallasPoint::Specific(slot, hash) => Point { slot, hash },
                     })
                 },
-                _ => panic!("unknown client type for find_intersect_fn")
+                _ => panic!("unknown client type for find_intersect")
             }
         }
     }
@@ -400,42 +394,7 @@ impl ClientWrapper {
         
                     next_response
                 },
-                _ => panic!("unknown client type for chain_sync_next_fn")
-            }
-        }
-    }
-
-    #[net]
-    pub fn chain_sync_has_agency(client_wrapper: ClientWrapper) -> bool {
-        unsafe {
-            match client_wrapper.client {
-                1 => {
-                    let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
-        
-                    // Convert the raw pointer back to a Box to deallocate the memory
-                    let mut _client = Box::from_raw(client_ptr);
-        
-                    let has_agency = _client.chainsync().has_agency();
-        
-                    // Convert client back to a raw pointer for future use
-                    let _ = Box::into_raw(_client);
-        
-                    has_agency
-                },
-                2 => {
-                    let client_ptr = client_wrapper.client_ptr as *mut PeerClient;
-        
-                    // Convert the raw pointer back to a Box to deallocate the memory
-                    let mut _client = Box::from_raw(client_ptr);
-        
-                    let has_agency = _client.chainsync().has_agency();
-        
-                    // Convert client back to a raw pointer for future use
-                    let _ = Box::into_raw(_client);
-        
-                    has_agency
-                },
-                _ => panic!("unknown client type for chain_sync_has_agency_fn")
+                _ => panic!("unknown client type for chain_sync_next")
             }
         }
     }
@@ -462,7 +421,7 @@ impl ClientWrapper {
                         _client.abort().await;
                     });
                 }
-                _ => panic!("unknown client type for disconnect_fn")
+                _ => panic!("unknown client type for disconnect")
             }
         }
     }
@@ -481,7 +440,7 @@ impl ClientWrapper {
 
                     block
                 },
-                _ => panic!("unkown client type for fetch_block_fn")
+                _ => panic!("unkown client type for fetch_block")
             }
         }
     }
@@ -575,26 +534,6 @@ impl ClientWrapper {
             id_bytes
         });
         ids
-    }
-}
-
-pub fn client_type_from_wrapper(client_wrapper: &ClientWrapper) -> Client {
-    unsafe {
-        let client_type = client_wrapper.client;
-    
-        match client_type {
-            1 => {
-                let client_ptr = client_wrapper.client_ptr as *mut NodeClient;
-                let client = Box::from_raw(client_ptr);
-                Client::N2C(*client)
-            },
-            2 => {
-                let client_ptr = client_wrapper.client_ptr as *mut PeerClient;
-                let client = Box::from_raw(client_ptr);
-                Client::N2N(*client)
-            },
-            _ => panic!("cannot convert byte: unknown client type")
-        }
     }
 }
 
