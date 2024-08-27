@@ -19,11 +19,11 @@ public class NodeClient
     public event EventHandler? Disconnected;
     public event EventHandler? Reconnected;
 
-    public async Task<Point> ConnectAsync(string socketPath, ulong magicNumber, Client client)
+    public async Task<Point> ConnectAsync(string socketPath, ulong magicNumber)
     {
         return await Task.Run(() =>
         {
-            _n2cClient = PallasDotnetRs.PallasDotnetRs.Connect(socketPath, magicNumber, (byte)client);
+            _n2cClient = PallasDotnetRs.PallasDotnetRs.Connect(socketPath, magicNumber, (byte)Client.N2C);
 
             if (_n2cClient is null)
             {
@@ -32,7 +32,7 @@ public class NodeClient
             
             _magicNumber = magicNumber;
             _socketPath = socketPath;
-            _client = (byte)client;
+            _client = (byte)Client.N2C;
 
             var pallasPoint = PallasDotnetRs.PallasDotnetRs.GetTip(_n2cClient.Value);
             return Utils.MapPallasPoint(pallasPoint);

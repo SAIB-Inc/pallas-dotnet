@@ -17,9 +17,9 @@ public class N2nClient
     public event EventHandler? Disconnected;
     public event EventHandler? Reconnected;
 
-    public async Task<Point> ConnectAsync(string server, ulong magicNumber, Client client)
+    public async Task<Point> ConnectAsync(string server, ulong magicNumber)
     {
-        _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(server, magicNumber, (byte)client);
+        _n2nClient = PallasDotnetRs.PallasDotnetRs.Connect(server, magicNumber, (byte)Client.N2N);
 
         if (_n2nClient is null)
         {
@@ -28,7 +28,7 @@ public class N2nClient
 
         _server = server;
         _magicNumber = magicNumber;  
-        _client = (byte)client;
+        _client = (byte)Client.N2N;
 
         return await GetTipAsync();
     }
