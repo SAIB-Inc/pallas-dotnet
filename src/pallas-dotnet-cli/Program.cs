@@ -18,22 +18,12 @@ static double GetCurrentMemoryUsageInMB()
 // N2C Protocol Implementation
 static async void ExecuteN2cProtocol()
 {
-    NodeClient? nodeClient = new();
-    Point? tip = await nodeClient.ConnectAsync("/tmp/node.socket", NetworkMagic.PREVIEW);
-
-    nodeClient.Disconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
-    };
-
-    nodeClient.Reconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
-    };
+    N2cClient? nodeClient = new();
+    Point? tip = await nodeClient.ConnectAsync("/home/rawriclark/CardanoPreview/pool/txpipe/relay1/ipc/node.socket", NetworkMagic.PREVIEW);
 
     await foreach (NextResponse? nextResponse in nodeClient.StartChainSyncAsync(new Point(
         57762827,
-        new Hash("7063cb55f1e55fd80aca1ee582a7b489856d704b46e213e268bad14a56f09f35")
+        "7063cb55f1e55fd80aca1ee582a7b489856d704b46e213e268bad14a56f09f35"
     )))
     {
         if (nextResponse.Action == NextResponseAction.Await)
@@ -72,26 +62,16 @@ static async void ExecuteN2cProtocol()
 static async void ExecuteN2nProtocol()
 {
     N2nClient? n2nClient = new();
-    Point? tip = await n2nClient.ConnectAsync("localhost:31000", NetworkMagic.PREVIEW);
+    Point? tip = await n2nClient.ConnectAsync("1.tcp.ap.ngrok.io:25317", NetworkMagic.PREVIEW);
 
     if (tip is not null)
     {
-        Console.WriteLine($"Tip: {tip.HashHex}");
+        Console.WriteLine($"Tip: {tip.Hash}");
     }
-
-    n2nClient.Disconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Disconnected ", ConsoleColor.DarkRed);
-    };
-
-    n2nClient.Reconnected += (sender, args) =>
-    {
-        ConsoleHelper.WriteLine($"Reconnected ", ConsoleColor.DarkGreen);
-    };
 
     await foreach (NextResponse? nextResponse in n2nClient.StartChainSyncAsync(new Point(
         57751092,
-        new Hash("d924387268359420990f8e71b9e89f0e6e9fa640ccd69acc5bf410ea5911366d")
+        "d924387268359420990f8e71b9e89f0e6e9fa640ccd69acc5bf410ea5911366d"
     )))
     {
         if (nextResponse.Action == NextResponseAction.Await)
@@ -114,8 +94,8 @@ static async void ExecuteN2nProtocol()
     }
 }
 
-await Task.Run(ExecuteN2cProtocol);
-// await Task.Run(ExecuteN2nProtocol);
+// await Task.Run(ExecuteN2cProtocol);
+await Task.Run(ExecuteN2nProtocol);
 
 while (true)
 {

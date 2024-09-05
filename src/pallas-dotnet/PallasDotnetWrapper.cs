@@ -76,11 +76,6 @@ namespace PallasDotnetRs
         ) {
             return (_FnChainSyncNext(_StructClientWrapper.Encode(clientWrapper))).Decode();
         }
-        public static bool ChainSyncHasAgency(
-            ClientWrapper clientWrapper
-        ) {
-            return (_FnChainSyncHasAgency(_StructClientWrapper.Encode(clientWrapper)) != 0);
-        }
         public static void Disconnect(
             ClientWrapper clientWrapper
         ) {
@@ -214,10 +209,6 @@ namespace PallasDotnetRs
         );
         [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_chain_sync_next", CallingConvention = CallingConvention.Cdecl)]
         private static extern _StructNextResponse _FnChainSyncNext(
-            _StructClientWrapper clientWrapper
-        );
-        [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_chain_sync_has_agency", CallingConvention = CallingConvention.Cdecl)]
-        private static extern byte _FnChainSyncHasAgency(
             _StructClientWrapper clientWrapper
         );
         [DllImport("pallas_dotnet_rs", EntryPoint = "rnet_export_disconnect", CallingConvention = CallingConvention.Cdecl)]

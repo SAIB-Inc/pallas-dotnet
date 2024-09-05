@@ -47,7 +47,7 @@ public class N2nClient
                 PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                 {
                     slot = intersection.Slot,
-                    hash = new List<byte>(intersection.Hash.Bytes)
+                    hash = new List<byte>(Convert.FromHexString(intersection.Hash))
                 });
             });
         }
@@ -90,7 +90,7 @@ public class N2nClient
             else
             {
                 NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
-                Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
+                Point tip = Utils.MapPallasPoint(nextResponseRs.tip);
 
                 NextResponse nextResponse = new(nextResponseAction, tip, [.. nextResponseRs.blockCbor]);
 
@@ -115,7 +115,7 @@ public class N2nClient
             return PallasDotnetRs.PallasDotnetRs.FetchBlock(_n2nClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
             {
                 slot = intersection.Slot,
-                hash = new List<byte>(intersection.Hash.Bytes)
+                hash = new List<byte>(Convert.FromHexString(intersection.Hash))
             }).ToArray();
         });
     }
@@ -130,7 +130,7 @@ public class N2nClient
         PallasDotnetRs.PallasDotnetRs.Point tip = PallasDotnetRs.PallasDotnetRs.GetTip(_n2nClient.Value);
         
         return await Task.Run(() => {
-            return new Point(tip.slot, new([..tip.hash]));
+            return Utils.MapPallasPoint(tip);
         });
     }
 }

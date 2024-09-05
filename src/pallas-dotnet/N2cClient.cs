@@ -3,7 +3,7 @@ using NextResponseRs = PallasDotnetRs.PallasDotnetRs.NextResponse;
 
 namespace PallasDotnet;
 
-public class NodeClient
+public class N2cClient
 {
     private PallasDotnetRs.PallasDotnetRs.ClientWrapper? _n2cClient;
     private string _socketPath = string.Empty;
@@ -53,7 +53,7 @@ public class NodeClient
                 PallasDotnetRs.PallasDotnetRs.FindIntersect(_n2cClient.Value, new PallasDotnetRs.PallasDotnetRs.Point
                 {
                     slot = intersection.Slot,
-                    hash = new List<byte>(intersection.Hash.Bytes)
+                    hash = new List<byte>(Convert.FromHexString(intersection.Hash))
                 });
             });
         }
@@ -93,7 +93,7 @@ public class NodeClient
             else
             {
                 NextResponseAction nextResponseAction = (NextResponseAction)nextResponseRs.action;
-                Point tip = new(nextResponseRs.tip.slot, new([.. nextResponseRs.tip.hash]));
+                Point tip = Utils.MapPallasPoint(nextResponseRs.tip);
 
                 NextResponse nextResponse = nextResponseAction switch
                 {
