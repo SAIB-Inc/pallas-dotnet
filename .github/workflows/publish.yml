@@ -64,6 +64,9 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0'
+          
+      - name: Setup rnet-gen
+        run: cargo install rnet-gen
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
@@ -81,5 +84,6 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
+          chmod +x ${{ github.workspace }}/src/pallas-dotnet/build-rs.sh
           chmod +x ${{ github.workspace }}/src/pallas-dotnet/publish.sh
           ${{ github.workspace }}/src/pallas-dotnet/publish.sh
